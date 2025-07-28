@@ -1,0 +1,65 @@
+{# File: blueprints/apps/app_store/templates/_app_notification.html #}
+{# Parameters expected: app_name, time_remaining_seconds, trial_expired, is_premium_active, notification_message_prefix, notification_type, whatsapp_number #}
+
+{% if notification_type == 'trial' or notification_type == 'expired' %} {# Hanya tampilkan jika trial atau expired, bukan premium #}
+    <div class="w-full py-1 px-4 text-center text-sm font-medium sticky top-0 z-20 bg-red-500 text-white">
+        <div class="flex items-center justify-center">
+            <span id="notification-message" class="flex-grow"></span>
+            <a href="https://wa.me/{{ whatsapp_number }}" target="_blank" class="ml-4 px-2 py-1 text-xs rounded-md bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors duration-200">
+                Hubungi Admin
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const timeRemainingSeconds = {{ time_remaining_seconds }};
+        const notificationMessageElement = document.getElementById('notification-message');
+        const trialExpired = {{ 'true' if trial_expired else 'false' }};
+        const isPremiumActive = {{ 'true' if is_premium_active else 'false' }};
+        const appName = "{{ app_name }}";
+        const notificationType = "{{ notification_type }}";
+        const notificationMessagePrefix = "{{ notification_message_prefix }}";
+
+        function formatTime(totalSeconds) {
+            if (totalSeconds <= 0) {
+                return "00:00:00";
+            }
+            const days = Math.floor(totalSeconds / (3600 * 24));
+            const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const remainingSeconds = Math.floor(totalSeconds % 60);
+
+            let timeString = '';
+            if (days > 0) {
+                timeString += `${days} hari `;
+            }
+            timeString += `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+            return timeString;
+        }
+
+        function updateNotificationDisplay() {
+            if (notificationType === 'expired') {
+                notificationMessageElement.textContent = notificationMessagePrefix;
+            } else if (notificationType === 'trial') {
+                let seconds = timeRemainingSeconds;
+
+                const countdownInterval = setInterval(() => {
+                    seconds--;
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                        notificationMessageElement.textContent = `Masa percobaan untuk Aplikasi ${appName} telah berakhir! Silakan Hubungi Admin untuk memperpanjang.`;
+                        location.reload();
+                    } else {
+                        notificationMessageElement.textContent = `${notification_message_prefix} ${formatTime(seconds)}, Silakan Hubungi Admin untuk memperpanjang!`;
+                    }
+                }, 1000);
+
+                notificationMessageElement.textContent = `${notification_message_prefix} ${formatTime(seconds)}, Silakan Hubungi Admin untuk memperpanjang!`;
+            }
+        }
+
+        if (notificationType === 'trial' || notificationType === 'expired') {
+            updateNotificationDisplay();
+        }
+    </script>
+{% endif %}

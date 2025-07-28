@@ -1,0 +1,52 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}App Store | rumaiku.id{% endblock %}
+{% block header_title %}Pilih Aplikasi{% endblock %}
+
+{% block content %}
+<p class="text-gray-600 mb-8">Pilih aplikasi yang ingin kamu instal dan gunakan.</p>
+    
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {% for app in all_apps %}
+    <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col items-center text-center">
+        <div class="p-3 bg-blue-100 rounded-full mb-4">
+            {% if app.url == 'roas_calculator' %}
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v4m0-4H9m0 0V9m6 0a6 6 0 01-6 6H9a6 6 0 01-6-6V9a6 6 0 016-6h6a6 6 0 016 6v4a6 6 0 01-6 6h-3"></path></svg>
+            {% else %}
+            <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            {% endif %}
+        </div>
+        <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ app.name }}</h2>
+        <p class="text-gray-600 text-sm mb-4 flex-grow">{{ app.description }}</p>
+        <div class="mt-auto">
+            {% set app_status = installed_app_data.get(app.id) %}
+
+            {% if app_status and app_status.is_installed %}
+                {% if app_status.trial_expired and not app_status.is_premium_active %}
+                    <span class="inline-block bg-red-500 text-white font-bold py-2 px-4 rounded-lg mb-2">Akses Berakhir</span>
+                    <a href="https://wa.me/{{ app_status.whatsapp_number }}?text=Halo%20Admin%2C%20saya%20ingin%20memperpanjang%20akses%20aplikasi%20{{ app.name | urlencode }}" target="_blank" class="block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">
+                        Hubungi Admin
+                    </a>
+                {% elif app_status.is_premium_active %}
+                    <span class="inline-block bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Premium Aktif</span>
+                    {# Pastikan ini mengarah ke index aplikasi ROAS #}
+                    <a href="{{ url_for('calculator_roas.index') }}" class="ml-2 inline-block text-blue-500 hover:underline">Buka Aplikasi</a>
+                {% else %} {# Trial aktif #}
+                    <span class="inline-block bg-green-500 text-white font-bold py-2 px-4 rounded-lg">Sudah Diinstal (Trial)</span>
+                    {# Pastikan ini mengarah ke index aplikasi ROAS #}
+                    <a href="{{ url_for('calculator_roas.index') }}" class="ml-2 inline-block text-blue-500 hover:underline">Buka Aplikasi</a>
+                {% endif %}
+            {% else %}
+                {# PERBAIKAN DI SINI: Arahkan ke endpoint detail di calculator_roas blueprint #}
+                {% if app.url == 'roas_calculator' %}
+                    <a href="{{ url_for('calculator_roas.detail', app_url=app.url) }}" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">Lihat Detail & Instal</a>
+                {% else %}
+                    {# Fallback jika aplikasi lain belum ada halaman detail spesifiknya #}
+                    <a href="#" class="bg-gray-400 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed">Detail Tidak Tersedia</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

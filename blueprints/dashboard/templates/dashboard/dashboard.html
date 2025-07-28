@@ -1,0 +1,104 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}Dashboard | rumaiku.id{% endblock %}
+
+{# TAMBAHKAN BLOCK HEADER_TITLE DI SINI #}
+{% block header_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-6 p-4 md:p-6">
+    <h1 class="text-2xl font-semibold mb-2 text-gray-800">Selamat Datang, {{ current_user.username }}!</h1> {# Larger title #}
+    <p class="text-gray-600 text-base mb-6">Kelola aplikasi yang kamu butuhkan di sini.</p> {# Larger text, more mb #}
+
+    {% if installed_apps and installed_apps|length > 0 %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+            {% for app_detail in installed_apps %}
+            <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col items-center text-center relative overflow-hidden"> {# Added overflow-hidden #}
+                
+                {# Countdown Clock di Pojok Kanan Atas #}
+                <div id="countdown-{{ app_detail.app.id }}" 
+                     class="absolute top-0 right-0 text-xxs font-semibold px-2 py-1 rounded-bl-lg italic z-10
+                            {% if app_detail.time_remaining_seconds <= 0 %} bg-red-500 text-white
+                            {% elif app_detail.time_remaining_seconds < 3600 %} bg-yellow-500 text-white
+                            {% else %} bg-blue-500 text-white {% endif %}"> {# Changed colors for better visibility #}
+                    Loading...
+                </div>
+
+                <div class="p-3 bg-orange-100 rounded-full mb-4">
+                    {% if app_detail.app.url == 'roas_calculator' %}
+                    <svg class="w-8 h-8 text-orange-600" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v4m0-4H9m0 0V9m6 0a6 6 0 01-6 6H9a6 6 0 01-6-6V9a6 6 0 016-6h6a6 6 0 016 6v4a6 6 0 01-6 6h-3"></path></svg>
+                    {% else %}
+                    <svg class="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    {% endif %}
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ app_detail.app.name }}</h2>
+                <p class="text-gray-600 text-sm mb-4 flex-grow">{{ app_detail.app.description }}</p>
+                
+                <a href="{{ url_for('calculator_roas.index') }}" class="mt-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">Buka Aplikasi</a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-10 rounded-lg bg-white shadow-md"> {# More padding and background for empty state #}
+            <p class="text-gray-700 text-base mb-4">Belum ada aplikasi yang diinstall.</p>
+            <p class="text-gray-700 text-base mb-6">Silahkan install melalui <a href="{{ url_for('app_store.index') }}" class="text-orange-500 hover:text-orange-600 font-medium">App Store</a>.</p>
+            <a href="{{ url_for('app_store.index') }}" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg text-base"> {# Larger button #}
+                Ke App Store
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const appsData = [
+            {% for app_detail in installed_apps %}
+            {
+                id: {{ app_detail.app.id }},
+                time_remaining_seconds: {{ app_detail.time_remaining_seconds }}
+            },
+            {% endfor %}
+        ];
+
+        function formatTimeForCard(totalSeconds) {
+            if (totalSeconds <= 0) {
+                return "Akses Berakhir";
+            }
+            const days = Math.floor(totalSeconds / (3600 * 24));
+            const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const remainingSeconds = Math.floor(totalSeconds % 60);
+
+            let timeString = '';
+            if (days > 0) {
+                timeString += `${days}h `; // 'h' for days to keep it compact
+            }
+            timeString += `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+            
+            return `Berakhir dalam: ${timeString}`;
+        }
+
+        appsData.forEach(app => {
+            const countdownElement = document.getElementById(`countdown-${app.id}`);
+            if (countdownElement) {
+                let seconds = app.time_remaining_seconds;
+
+                const updateCountdown = () => {
+                    countdownElement.textContent = formatTimeForCard(seconds);
+                    
+                    if (seconds <= 0 && countdownElement.textContent !== "Akses Berakhir") {
+                        // Optional: Visually indicate expiration more strongly if needed
+                    }
+                    seconds--;
+                };
+
+                updateCountdown();
+                // Check if seconds is positive before starting interval to prevent negative countdown
+                if (seconds > 0) {
+                    setInterval(updateCountdown, 1000);
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

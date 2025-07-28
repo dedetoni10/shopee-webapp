@@ -1,0 +1,1878 @@
+{# File: blueprints/apps/calculator_roas/templates/roas_calculator.html #}
+{% extends 'base_auth.html' %}
+
+{% block title %}{{ app_name }} | rumaiku.id{% endblock %}
+{% block header_title %}{{ app_name }}{% endblock %}
+
+{% block app_notification %}
+    {# Notifikasi di bagian atas, mirip bar info di gambar #}
+    {% if notification_type == 'trial' or notification_type == 'expired' or notification_type == 'premium' %}
+        <div class="top-notification-bar
+            {% if notification_type == 'trial' or notification_type == 'expired' %} status-red
+            {% elif notification_type == 'premium' %} status-green
+            {% endif %}">
+            <div class="notification-content">
+                <svg class="notification-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    {% if notification_type == 'trial' or notification_type == 'expired' %}
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.542 2.503-1.542 3.268 0l7.556 15.133c.754 1.508-.282 3.267-2.031 3.267H2.723c-1.749 0-2.785-1.759-2.031-3.267L8.257 3.099zM10 11a1 1 0 100-2 1 1 0 000 2zm-1 4a1 1 0 102 0 1 1 0 00-2 0z" clip-rule="evenodd"></path>
+                    {% elif notification_type == 'premium' %}
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    {% endif %}
+                </svg>
+                <span id="app-notification-message" class="notification-message">
+                    {# Text will be set by JavaScript #}
+                </span>
+                <a href="https://wa.me/{{ whatsapp_number }}" target="_blank" class="notification-action-button">
+                    Hubungi Admin
+                </a>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+
+{% block content %}
+<style>
+    /* ------------------------------------------------------------- */
+    /* GLOBAL STYLES & FONT DEFINITIONS (Inspired by Clockify/CRM) */
+    /* ------------------------------------------------------------- */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f7f9fb; /* Light gray background, matching image */
+        color: #4a5568; /* Dark gray text */
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-size: 13px; /* Base font size, slightly smaller for density */
+    }
+
+    /* Custom Scrollbar for a cleaner look */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+
+    /* Dark Mode Overrides (minimal, to prevent breaking light mode) */
+    .dark body {
+        background-color: #1a202c; /* Darker background for dark mode */
+        color: #e2e8f0; /* Light text for dark mode */
+    }
+    .dark .app-main-container {
+        background-color: #2d3748; /* Darker container background */
+        border-color: #4a5568;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .dark .app-header-area { border-color: #4a5568; }
+    .dark .app-title-text { color: #e2e8f0; }
+
+    .dark .filter-panel { border-color: #4a5568; background-color: #2d3748; }
+    .dark .filter-panel-header { color: #e2e8f0; }
+    .dark .filter-label { color: #e2e8f0; }
+    .dark .filter-input { background-color: #4a5568; border-color: #6a7c93; color: #e2e8f0; }
+    .dark .custom-checkbox-item { color: #e2e8f0; }
+    .dark .custom-checkbox-item input[type="checkbox"] { border-color: #a0aec0; }
+    .dark .filter-chip { background-color: #2c5282; color: #ebf8ff; }
+    .dark .filter-chip-remove-btn { color: #ebf8ff; }
+    .dark .filter-action-button { background-color: #3182ce; }
+    .dark .filter-action-button:hover { background-color: #2c5282; }
+
+    .dark .data-panel { background-color: #2d3748; }
+    .dark .data-panel-header { border-color: #4a5568; }
+    .dark .data-panel-title { color: #e2e8f0; }
+    .dark .data-panel-header .data-search-input { background-color: #4a5568; border-color: #6a7c93; color: #e2e8f0; }
+
+    .dark .main-data-table th { background-color: #4a5568; border-color: #4a5568; color: #e2e8f0; }
+    .dark .main-data-table td { border-color: #4a5568; color: #e2e8f0; }
+    .dark .main-data-table tbody tr:hover { background-color: #4a5568; }
+
+    .dark .status-green { background-color: rgba(72, 187, 120, 0.2); color: #9be6b4; } /* Semi-transparent green for dark mode */
+    .dark .status-yellow { background-color: rgba(236, 201, 75, 0.2); color: #fdf3c7; }
+    .dark .status-red { background-color: rgba(229, 62, 62, 0.2); color: #fbb6ce; }
+
+    .dark .detail-action-button { background-color: #63b3ed; color: #2d3748; }
+    .dark .detail-action-button:hover { background-color: #4299e1; }
+
+    .dark .empty-state-message { color: #a0aec0; }
+    .dark .locked-content-message { background-color: #4a5568; color: #e2e8f0; }
+    .dark .locked-title { color: #e2e8f0; }
+    .dark .locked-text { color: #a0aec0; }
+    .dark .header-tooltip { background-color: #4a5568; border-color: #6a7c93; color: #e2e8f0; }
+
+    .dark .modal-overlay { background-color: rgba(0,0,0,0.7); }
+    .dark .modal-content { background-color: #2d3748; border-color: #4a5568; }
+    .dark .modal-header { color: #e2e8f0; }
+    .dark .modal-close-button { color: #a0aec0; }
+    .dark .modal-close-button:hover { color: #e2e8f0; }
+    .dark .modal-body { color: #a0aec0; }
+    .dark .modal-body strong { color: #e2e8f0; }
+    .dark .modal-body span { margin-left: 5px; }
+    .dark .modal-action-btn { background-color: #3182ce; color: white; }
+    .dark .modal-action-btn:hover { background-color: #2c5282; }
+
+    .dark .mode-tab-button {
+        background-color: #4a5568; /* Darker bg for dark mode tabs */
+        color: #e2e8f0;
+    }
+    .dark .mode-tab-button:not(:last-child) {
+        border-right-color: #6a7c93;
+    }
+    .dark .mode-tab-button.active {
+        background-color: #3182ce;
+        color: #ffffff;
+    }
+    .dark .mode-tab-button:hover:not(.active) {
+        background-color: #6a7c93;
+    }
+
+
+    /* ------------------------------------------------------------- */
+    /* TOP NOTIFICATION BAR */
+    /* ------------------------------------------------------------- */
+    .top-notification-bar {
+        width: 100%;
+        padding: 8px 16px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid; /* Dynamic border color */
+    }
+    .top-notification-bar.status-red {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border-color: #fca5a5;
+    }
+    .top-notification-bar.status-green {
+        background-color: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+    .top-notification-bar.status-yellow { /* Default for trial, if not red */
+        background-color: #fefcbf;
+        color: #8b5f00;
+        border-color: #fed7aa;
+    }
+    .notification-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .notification-icon {
+        width: 16px;
+        height: 16px;
+    }
+    .notification-message {
+        flex-grow: 1;
+    }
+    .notification-action-button {
+        background-color: rgba(255, 255, 255, 0.7);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #4a5568;
+        border: 1px solid #e2e8f0;
+        transition: background-color 0.2s;
+    }
+    .notification-action-button:hover {
+        background-color: rgba(255, 255, 255, 1);
+    }
+    .dark .top-notification-bar.status-red {
+        background-color: #c53030;
+        color: #fed7d7;
+        border-color: #ef8b8b;
+    }
+    .dark .top-notification-bar.status-green {
+        background-color: #38a169;
+        color: #c6f6d5;
+        border-color: #81e6d9;
+    }
+    .dark .top-notification-bar.status-yellow {
+        background-color: #d69e2e; /* Darker yellow for dark mode */
+        color: #feebc8;
+        border-color: #fbd38d;
+    }
+    .dark .notification-action-button {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    .dark .notification-action-button:hover {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+
+    /* ------------------------------------------------------------- */
+    /* MAIN APP CONTAINER & LAYOUT */
+    /* ------------------------------------------------------------- */
+    .app-main-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - var(--notification-height, 0px) - 32px); /* Adjust height dynamically, 32px for total margin */
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        overflow: hidden;
+        margin: 16px; /* Margin around the whole app container */
+    }
+
+    .app-content-wrapper {
+        display: flex;
+        flex: 1; /* Takes remaining height */
+        overflow: hidden; /* For internal scrolling */
+    }
+
+    /* main-area-right-of-sidebar: The content area to the right of the actual sidebar (if present) */
+    /* Assuming base_auth.html handles the main sidebar. This div will be the "main-content-area" from previous iterations. */
+    .main-area-right-of-sidebar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Enables overflow for this main section */
+    }
+
+    .app-header-area {
+        padding: 16px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .app-title-text {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+    }
+    /* Removed .app-header-actions as requested */
+
+
+    /* Main Content below header (Filters + Data) */
+    .content-area-main-grid {
+        display: flex;
+        flex: 1;
+        overflow: hidden; /* For filter/data panel scrolling */
+    }
+
+    /* Left Panel: Input / Filters */
+    .filter-panel {
+        width: 300px; /* Fixed width for filter panel, matching image */
+        flex-shrink: 0;
+        border-right: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto; /* Allow scrolling for filters if too many */
+        padding: 16px 20px; /* Adjusted padding */
+        background-color: #ffffff;
+    }
+
+    .filter-panel-header {
+        font-size: 14px; /* Smaller header font size */
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 16px;
+    }
+
+    .filter-group {
+        margin-bottom: 8px; /* Even tighter spacing for form fields */
+    }
+    .filter-label {
+        font-size: 11px; /* Smaller label font size */
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 4px; /* Tighter label spacing */
+        display: block;
+    }
+    .filter-input {
+        width: 100%;
+        padding: 5px 10px; /* Even tighter padding */
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        font-size: 13px; /* Smaller input font size */
+        color: #4a5568;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .filter-input:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 1px #3182ce;
+    }
+
+    /* Custom Flex Layout for two columns in filter-group */
+    .filter-group-flex {
+        display: flex;
+        gap: 10px; /* Space between two columns */
+        margin-bottom: 8px; /* Consistent with single filter-group */
+    }
+    .filter-group-flex > div {
+        flex: 1; /* Each child takes equal width */
+    }
+
+
+    /* Mode Selection Tabs (within filter panel) */
+    .mode-tabs-container {
+        display: flex;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 16px; /* Space below tabs */
+    }
+    .mode-tab-button {
+        flex: 1;
+        padding: 5px 8px; /* Tighter padding to fit single line */
+        font-size: 12px; /* Smaller font size to fit one line */
+        font-weight: 600;
+        color: #718096;
+        background-color: #f7fafc;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+        text-align: center;
+        white-space: nowrap; /* Ensure text stays in one line */
+    }
+    .mode-tab-button:not(:last-child) {
+        border-right: 1px solid #e2e8f0; /* Separator between tabs */
+    }
+    .mode-tab-button.active {
+        background-color: #ebf8ff; /* Light blue active background */
+        color: #3182ce; /* Blue text */
+    }
+    .mode-tab-button:hover:not(.active) {
+        background-color: #edf2f7;
+    }
+
+    /* Filter Action Button (at bottom of filter panel) */
+    .filter-action-button {
+        width: 100%;
+        padding: 8px 0; /* Tighter padding */
+        background-color: #3182ce;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: auto; /* Push to bottom */
+    }
+    .filter-action-button:hover {
+        background-color: #2c5282;
+    }
+    .filter-action-button:disabled {
+        background-color: #a0aec0;
+        color: #718096; /* Darker text for disabled state */
+        cursor: not-allowed;
+    }
+
+
+    /* Right Panel: Data / Results */
+    .data-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* For table scrolling */
+        background-color: #ffffff;
+    }
+
+    .data-panel-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .data-panel-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    /* Data Panel Controls (Search Input) - MOVED TO HEADER */
+    .data-panel-header .data-search-input { /* Style for search input when inside header */
+        flex: none; /* Do not grow */
+        width: 180px; /* Specific width for search input, match image */
+        margin-left: auto; /* Push to right */
+        margin-right: 0;
+        
+        /* Styles for the search input to make it look like a box */
+        padding: 6px 10px; /* Tighter padding */
+        border: 1px solid #cbd5e0; /* Clear border */
+        border-radius: 4px; /* Rounded corners */
+        font-size: 13px; /* Readable font size */
+        color: #4a5568; /* Text color */
+        transition: border-color 0.2s, box-shadow 0.2s;
+        background-color: #ffffff; /* Explicitly white background */
+    }
+    .data-panel-header .data-search-input::placeholder {
+        color: #a0aec0; /* Placeholder color */
+    }
+    .data-panel-header .data-search-input:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 1px #3182ce;
+    }
+    /* Removed .data-buttons-group .btn styles here because the group is removed */
+
+
+    /* Data Table Styles */
+    .data-table-container {
+        flex: 1;
+        overflow-y: auto; /* Allow vertical scrolling for table content */
+        overflow-x: auto; /* Allow horizontal scrolling if content overflows */
+    }
+    .main-data-table {
+        width: 100%;
+        /* min-width: 1000px; <- REMOVED, Let table adjust naturally or define specific column widths. */
+        border-collapse: collapse; /* Remove double borders */
+        table-layout: auto; /* Change to auto so columns adjust to content */
+    }
+    .main-data-table th {
+        text-align: left;
+        padding: 8px 6px; /* Greatly reduced padding for headers */
+        font-size: 10px; /* Smaller font size for headers */
+        font-weight: 600;
+        color: #718096;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f7fafc;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        white-space: normal; /* Allow headers to wrap */
+        word-break: break-word; /* Break long words */
+        border-right: 1px solid #e2e8f0;
+    }
+    /* Remove border from the last header */
+    .main-data-table th:last-child {
+        border-right: none;
+    }
+    .main-data-table td {
+        padding: 6px 6px; /* Reduced padding for cells */
+        font-size: 12px; /* Smaller font for data cells */
+        border-bottom: 1px solid #edf2f7;
+        color: #4a5568;
+        white-space: normal; /* Allow cells to wrap into multiple lines by default */
+        word-break: break-word; /* Break long words */
+        overflow: visible; /* Make sure text is not hidden, allow wrapping */
+        text-overflow: clip; /* No ellipsis by default for data cells */
+        border-right: 1px solid #edf2f7;
+    }
+    /* Remove border from the last cell in a row */
+    .main-data-table td:last-child {
+        border-right: none;
+    }
+
+    .main-data-table tbody tr:hover {
+        background-color: #edf2f7;
+    }
+    /* Specific styles for table columns */
+    .main-data-table .col-name { font-weight: 600; }
+    .main-data-table .col-total { font-weight: 600; text-align: right; }
+    .main-data-table .col-progress {
+        width: 100px;
+        padding-right: 8px;
+        position: relative;
+    }
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background-color: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-bar {
+        height: 100%;
+        background-color: #a0aec0; /* Default gray */
+        border-radius: 4px;
+    }
+    /* Status dots/chips (for table rows, if applicable) */
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+    .status-dot.green { background-color: #48bb78; }
+    .status-dot.yellow { background-color: #ecc94b; }
+    .status-dot.red { background-color: #e53e3e; }
+
+    /* For ROAS Calculator specific table content */
+    .status-green { background-color: #ecfdf5; } /* Light green background for row */
+    .status-yellow { background-color: #fffbe6; } /* Light yellow background for row */
+    .status-red { background-color: #fef2f2; } /* Light red background for row */
+    .detail-action-button {
+        background-color: #ebf8ff; /* light blue */
+        color: #3182ce; /* blue */
+        padding: 3px 6px; /* Even tighter button */
+        border: 1px solid #90cdf4;
+        border-radius: 4px;
+        font-size: 10px; /* Smaller font */
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s, border-color 0.2s;
+        text-align: center; /* Center text in button */
+        white-space: nowrap; /* Prevent text wrapping in small buttons */
+    }
+    .detail-action-button:hover {
+        background-color: #bee3f8;
+    }
+    /* New button for Recalculate inside Detail Modal */
+    .modal-recalculate-button {
+        background-color: #4CAF50; /* Green */
+        color: white;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        margin-top: 15px; /* Space above button */
+        display: inline-block; /* Aligns with text */
+    }
+    .modal-recalculate-button:hover {
+        background-color: #45a049;
+    }
+
+
+    /* Empty State Message */
+    .empty-state-message {
+        padding: 40px;
+        text-align: center;
+        font-size: 15px; /* Smaller font */
+        color: #718096;
+    }
+
+    /* Header Tooltip */
+    .header-tooltip {
+        position: absolute;
+        background-color: #4a5568; /* Dark gray background */
+        color: #ffffff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: normal;
+        z-index: 50;
+        pointer-events: none;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        border: 1px solid #6a7c93;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+    }
+    .modal-content {
+        background-color: #ffffff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        max-width: 500px;
+        width: 90%;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    .modal-close-button {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #a0aec0;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+    .modal-close-button:hover {
+        color: #718096;
+    }
+    .modal-body {
+        font-size: 13px; /* Smaller font */
+        line-height: 1.6;
+        color: #4a5568;
+    }
+    .modal-body p { margin-bottom: 6px; } /* Tighter spacing */
+    .modal-body strong { font-weight: 600; color: #2d3748; }
+    .modal-body span { margin-left: 5px; }
+    .modal-action-btn {
+        padding: 8px 16px;
+        background-color: #3182ce;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .modal-action-btn:hover {
+        background-color: #2c5282;
+    }
+    .modal-footer {
+        margin-top: 20px;
+        text-align: right;
+    }
+
+    /* Locked Content Message (if trial expired) */
+    .locked-content-message {
+        padding: 40px;
+        text-align: center;
+        background-color: #f7fafc;
+        border: 1.5px solid #e2e8f0; /* Thicker border for clarity */
+        border-radius: 8px;
+        margin: 20px; /* Space around the message */
+    }
+    .locked-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 10px;
+    }
+    .locked-text {
+        font-size: 15px;
+        color: #4a5568;
+    }
+
+    /* Flash Messages */
+    .flash-message {
+        padding: 8px 15px; /* Tighter padding */
+        border-radius: 6px;
+        font-size: 12px; /* Smaller font size */
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid; /* Dynamic border color */
+    }
+    .flash-message.success {
+        background-color: #ecfdf5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+    .flash-message.warning {
+        background-color: #fffbe6;
+        color: #8b5f00;
+        border-color: #fed7aa;
+    }
+    .flash-message.danger, .flash-message.error {
+        background-color: #fef2f2;
+        color: #991b1b;
+        border-color: #fca5a5;
+    }
+    .flash-message.info {
+        background-color: #ebf8ff;
+        color: #2c5282;
+        border-color: #90cdf4;
+    }
+    .close-flash-btn {
+        background: none;
+        border: none;
+        color: inherit; /* Inherit color from parent flash message */
+        font-size: 16px; /* Smaller close button */
+        cursor: pointer;
+        line-height: 1;
+        margin-left: 10px;
+    }
+    .close-flash-btn svg { width: 16px; height: 16px; }
+
+    /* CSS for the main analysis result section (panah merah) */
+    .result-summary-text {
+        font-size: 16px; /* Slightly larger font for main recommendation */
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 12px; /* Increased margin-bottom */
+        margin-top: 15px; /* Added margin-top to push it down from title */
+        padding-left: 20px; /* Add some padding on the left */
+        line-height: 1.5; /* Added line height for better readability */
+    }
+    .result-summary-text strong {
+        color: #3182ce; /* Highlight strong text */
+    }
+
+    .result-info-box {
+        background-color: #f0f4f8; /* Light background for the info box */
+        border: 1px solid #cbd5e0;
+        border-radius: 8px; /* Slightly more rounded corners */
+        padding: 20px; /* Increased padding */
+        margin-bottom: 25px; /* Increased margin-bottom */
+        margin-left: 20px; /* Add margin-left to align with table */
+        margin-right: 20px; /* Add margin-right */
+        font-size: 14px; /* Slightly larger font */
+        line-height: 1.7; /* Increased line height for better readability */
+        color: #4a5568;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Subtle shadow for depth */
+    }
+
+    .result-info-box strong {
+        color: #3182ce; /* Blue color for emphasis */
+    }
+
+    .result-info-box span.info-item {
+        display: block; /* Each info item on a new line */
+        margin-bottom: 8px; /* More margin between items */
+    }
+    .result-info-box span.info-item:last-child {
+        margin-bottom: 0; /* Remove margin from last item */
+    }
+
+    /* Styling for the bullet point (•) to make it look nicer */
+    .result-info-box span.info-item::before {
+        content: '•';
+        color: #3182ce; /* Blue color for the bullet */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em; /* Allocate space for the bullet */
+        margin-left: -1em; /* Pull bullet left to align text */
+        margin-right: 0.5em; /* Space between bullet and text */
+    }
+
+
+    /* Dark mode for info box */
+    .dark .result-summary-text {
+        color: #e2e8f0;
+    }
+    .dark .result-summary-text strong {
+        color: #63b3ed;
+    }
+    .dark .result-info-box {
+        background-color: #2c3e50;
+        border-color: #4a5568;
+        color: #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* Darker shadow */
+    }
+    .dark .result-info-box strong {
+        color: #63b3ed;
+    }
+    .dark .result-info-box span.info-item::before {
+        color: #63b3ed; /* Blue bullet in dark mode */
+    }
+
+
+    /* CSV Table specific column widths */
+    /* Total ~100% width, adjust as needed. */
+    /* Removed 'Nama Produk' column (1st column), re-indexed nth-child and adjusted widths */
+    /* Adjusting to make space for the new "Aksi" column */
+    .main-data-table.csv-table th:nth-child(1) { width: 8%; } /* Produk ID */
+    .main-data-table.csv-table th:nth-child(2) { width: 9%; } /* Biaya Iklan */
+    .main-data-table.csv-table th:nth-child(3) { width: 9%; } /* Omzet Penjualan */
+    .main-data-table.csv-table th:nth-child(4) { width: 8%; }  /* Produk Terjual */
+    .main-data-table.csv-table th:nth-child(5) { width: 8%; }  /* ROAS Aktual */
+    .main-data-table.csv-table th:nth-child(6) { width: 10%; } /* Analisa */
+    .main-data-table.csv-table th:nth-child(7) { width: 12%; } /* Rekomendasi Aksi */
+    .main-data-table.csv-table th:nth-child(8) { width: 8%; } /* ROAS Rekomendasi */
+    .main-data-table.csv-table th:nth-child(9) { width: 10%; } /* Modal Harian Rekomendasi */
+    .main-data-table.csv-table th:nth-child(10) { width: 5%; } /* Detail (Button) */
+
+
+    /* Ensure other td cells allow wrapping */
+    .main-data-table td { /* Apply to all tds, then override for specific boxes */
+        white-space: normal; /* Allow wrapping for general cells */
+        overflow: visible;    
+        text-overflow: clip;  
+    }
+
+    /* Style for ROAS values in a box */
+    .roas-value-box {
+        display: inline-block; /* Allows padding and border around the number */
+        padding: 2px 5px; /* Small padding inside the box */
+        border: 1px solid #cbd5e0; /* Light gray border */
+        border-radius: 4px; /* Slightly rounded corners */
+        background-color: #f7fafc; /* Light background for the box */
+        font-weight: 600; /* Keep bold for emphasis */
+        min-width: 45px; /* Give it a minimum width to keep boxes consistent */
+        text-align: center; /* Center the number in the box */
+    }
+    /* Dark mode for ROAS boxes */
+    .dark .roas-value-box {
+        background-color: #4a5568;
+        border-color: #6a7c93;
+        color: #e2e8f0;
+    }
+
+
+    /* Responsive adjustments for table cells */
+    @media (max-width: 1024px) {
+        .main-data-table {
+            min-width: 900px; /* Adjust minimum width for medium screens, allowing some scroll if needed */
+        }
+        .main-data-table th, .main-data-table td {
+            padding: 6px 6px; /* Further reduced padding for smaller screens */
+            font-size: 10px; /* Slightly smaller font for table content */
+        }
+        /* Adjust CSV table widths for medium screens (10 columns total now) */
+        .main-data-table.csv-table th:nth-child(1) { width: 8%; }
+        .main-data-table.csv-table th:nth-child(2) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(3) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(4) { width: 8%; }
+        .main-data-table.csv-table th:nth-child(5) { width: 8%; }
+        .main-data-table.csv-table th:nth-child(6) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(7) { width: 11%; }
+        .main-data-table.csv-table th:nth-child(8) { width: 8%; }
+        .main-data-table.csv-table th:nth-child(9) { width: 10%; }
+        .main-data-table.csv-table th:nth-child(10) { width: 7%; }
+
+        .roas-value-box {
+            min-width: 35px; /* Adjust min-width for smaller screens */
+            padding: 1px 3px;
+            font-size: 10px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .main-data-table {
+            min-width: 900px; /* On very small screens, maintain minimum width to prevent excessive squishing, force scroll */
+        }
+        .main-data-table th, .main-data-table td {
+            padding: 4px 4px; /* Even smaller padding on mobile */
+            font-size: 9px; /* Even smaller font */
+        }
+        /* Adjust column widths for very small screens (10 columns total) */
+        .main-data-table.csv-table th:nth-child(1) { width: 7%; }
+        .main-data-table.csv-table th:nth-child(2) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(3) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(4) { width: 7%; }
+        .main-data-table.csv-table th:nth-child(5) { width: 7%; }
+        .main-data-table.csv-table th:nth-child(6) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(7) { width: 10%; }
+        .main-data-table.csv-table th:nth-child(8) { width: 7%; }
+        .main-data-table.csv-table th:nth-child(9) { width: 9%; }
+        .main-data-table.csv-table th:nth-child(10) { width: 7%; }
+
+        .roas-value-box {
+            min-width: 30px; /* Even smaller min-width for mobile */
+            padding: 0px 1px;
+            font-size: 8px;
+        }
+    }
+
+</style>
+
+<div class="app-main-container">
+    {# Header Area, similar to Clockify's top bar #}
+    <div class="app-header-area">
+        <h1 class="app-title-text">Kalkulator ROAS</h1>
+        {# Removed .app-header-actions (Ekspor Data, Atur Produk) as requested #}
+    </div>
+
+    <div class="app-content-wrapper">
+        {# main-area-right-of-sidebar: Ini adalah area utama konten Anda di samping sidebar dari base_auth.html #}
+        {# Pastikan div ini ada di base_auth.html sebagai container untuk {% block content %}{% endblock %} #}
+        {# Contoh: <div class="content-area-main">{% block content %}{% endblock %}</div> #}
+        <div class="main-area-right-of-sidebar">
+
+            <div class="content-area-main-grid">
+                {# Left Panel: Input / Filters #}
+                <div class="filter-panel">
+                    <h2 class="filter-panel-header">Pilih Mode Analisa Anda</h2>
+
+                    {# Mode Selection Tabs (Iklan Baru, Analisa Manual, Analisa CSV) #}
+                    <div class="mode-tabs-container">
+                        <button type="button" id="tab-baru-mode" class="mode-tab-button" data-mode="baru">
+                            Iklan Baru
+                        </button>
+                        <button type="button" id="tab-jalan-mode" class="mode-tab-button" data-mode="jalan">
+                            Analisa Manual
+                        </button>
+                        <button type="button" id="tab-csv-mode" class="mode-tab-button" data-mode="csv">
+                            Analisa CSV
+                        </button>
+                    </div>
+
+                    {% if not trial_expired %}
+                        {# Mode Iklan Baru Form #}
+                        <div id="mode_baru_form" class="analysis-mode-section">
+                            <form id="form_baru" action="{{ url_for('calculator_roas.analyze') }}" method="POST" class="analysis-form">
+                                <input type="hidden" name="mode" value="baru">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                                <div class="filter-group">
+                                    <label for="modal" class="filter-label">Modal Produk (Rp):</label>
+                                    <input type="number" id="modal" name="modal" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="harga_jual" class="filter-label">Harga Jual (Rp):</label>
+                                    <input type="number" id="harga_jual" name="harga_jual" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="fee" class="filter-label">Fee Shopee (%):</label>
+                                    <input type="number" id="fee" name="fee" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="tambahan" class="filter-label">Biaya Tambahan (Rp):</label>
+                                    <input type="number" id="tambahan" name="tambahan" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="profit" class="filter-label">Target Profit (%):</label>
+                                    <input type="number" id="profit" name="profit" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="estimated_produk_terjual" class="filter-label">Estimasi Produk Terjual (Opsional):</label>
+                                    <input type="number" id="estimated_produk_terjual" name="estimated_produk_terjual" step="1" class="filter-input">
+                                </div>
+                                <button type="submit" class="filter-action-button" data-form-mode="baru">
+                                    Hitung ROAS
+                                </button>
+                            </form>
+                        </div>
+
+                        {# Mode Analisa Manual Form (Revisi) #}
+                        <div id="mode_jalan_form" class="analysis-mode-section" style="display: none;">
+                            <form id="form_jalan" action="{{ url_for('calculator_roas.analyze') }}" method="POST" class="analysis-form">
+                                <input type="hidden" name="mode" value="jalan">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                
+                                <div class="filter-group">
+                                    <label for="biaya_iklan_aktual" class="filter-label">Biaya Iklan (Rp) (dari laporan Shopee):</label>
+                                    <input type="number" id="biaya_iklan_aktual" name="biaya_iklan_aktual" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="omzet_penjualan_aktual" class="filter-label">Omzet Penjualan (Rp) (dari laporan Shopee):</label>
+                                    <input type="number" id="omzet_penjualan_aktual" name="omzet_penjualan_aktual" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="produk_terjual_aktual" class="filter-label">Produk Terjual (Unit) (dari laporan Shopee):</label>
+                                    <input type="number" id="produk_terjual_aktual" name="produk_terjual_aktual" step="1" class="filter-input" required>
+                                </div>
+                                
+                                <hr style="margin: 15px 0; border-top: 1px dashed #e2e8f0;">
+
+                                <div class="filter-group">
+                                    <label for="modal_produk" class="filter-label">Modal Produk per Unit (Rp):</label>
+                                    <input type="number" id="modal_produk" name="modal_produk" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="harga_jual_manual" class="filter-label">Harga Jual per Unit (Rp):</label>
+                                    <input type="number" id="harga_jual_manual" name="harga_jual_manual" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="fee_shopee" class="filter-label">Fee Shopee (%):</label>
+                                    <input type="number" id="fee_shopee" name="fee_shopee" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="biaya_tambahan" class="filter-label">Biaya Tambahan per Unit (Rp):</label>
+                                    <input type="number" id="biaya_tambahan" name="biaya_tambahan" step="0.01" class="filter-input" required>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="target_profit" class="filter-label">Target Profit (%):</label>
+                                    <input type="number" id="target_profit" name="target_profit" step="0.01" class="filter-input" required>
+                                </div>
+                                
+                                <button type="submit" class="filter-action-button" data-form-mode="jalan">
+                                    Analisa Iklan
+                                </button>
+                            </form>
+                        </div>
+
+                        {# Mode Analisa CSV Form #}
+                        <div id="mode_csv_form" class="analysis-mode-section">
+                            <form id="form_csv" action="{{ url_for('calculator_roas.analyze') }}" method="POST" enctype="multipart/form-data" class="analysis-form">
+                                <input type="hidden" name="mode" value="csv">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <div class="filter-group">
+                                    <label for="csv_file" class="filter-label">Upload File CSV:</label>
+                                    <input type="file" id="csv_file" name="csv_file" accept=".csv" class="filter-input" required>
+                                </div>
+                                <button type="submit" class="filter-action-button" data-form-mode="csv">
+                                    Import & Analisa
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        {# Konten terkunci jika trial expired #}
+                        <div class="locked-content-message">
+                            <h2 class="locked-title">Konten aplikasi terkunci.</h2>
+                            <p class="locked-text">Harap hubungi admin untuk akses premium.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {# Right Panel: Data / Results #}
+                <div class="data-panel">
+                    <div class="data-panel-header">
+                        <h2 class="data-panel-title">Hasil Analisa</h2>
+                        {# Kolom pencarian dipindahkan ke sini, sejajar dengan Hasil Analisa #}
+                        <input type="text" placeholder="Cari data di tabel..." class="data-search-input">
+                    </div>
+
+                    <div id="result_area" class="data-table-container">
+                        {# Dynamic content will be injected here by JavaScript #}
+                        <div id="baru_result_display" class="result-display-section" style="display: none;"></div>
+                        <div id="jalan_result_display" class="result-display-section" style="display: none;"></div>
+                        <div id="csv_result_display" class="result-display-section" style="display: none;"></div>
+
+                        {# Dedicated empty states to be shown when no data is loaded or available #}
+                        <div id="empty_result_display" class="empty-state-message">
+                            Belum ada hasil analisa. Silakan pilih mode dan masukkan data untuk memulai perhitungan.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Pop-up / Tooltip for table headers #}
+<div id="header_tooltip" class="header-tooltip" style="display: none;"></div>
+
+{# MODAL ANALISA PRODUK (Untuk mode CSV) #}
+<div id="product_analysis_modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal_product_name"></h3>
+            <button type="button" class="modal-close-button" onclick="closeProductAnalysisModal()">
+                &times;
+            </button>
+        </div>
+        <div class="modal-body">
+            {# Menampilkan data asli dari CSV #}
+            <p><strong>ID Produk:</strong> <span id="modal_produk_id_display"></span></p>
+            <p><strong>Biaya Iklan:</strong> <span id="modal_biaya"></span></p>
+            <p><strong>Omzet Penjualan:</strong> <span id="modal_omzet_penjualan"></span></p>
+            <p><strong>Produk Terjual:</strong> <span id="modal_produk_terjual"></span></p>
+            <p><strong>ROAS Aktual:</strong> <span id="modal_roas_aktual_display"></span></p>    
+            <p><strong>Persentase Klik (CTR):</strong> <span id="modal_persentase_klik"></span></p>
+            <p><strong>Analisa (CSV):</strong> <span id="modal_analisa"></span></p>
+            <p><strong>Rekomendasi Aksi (CSV):</strong> <span id="modal_rekomendasi_aksi"></span></p>
+            <p><strong>ROAS Rekomendasi (CSV):</strong> <span id="modal_roas_target_optimal"></span></p>
+            <p><strong>Modal Harian Rekomendasi (CSV):</strong> <span id="modal_rekomendasi_modal_harian"></span></p>
+            <p><strong>Penjelasan Detail (CSV):</strong> <span id="modal_detailed_explanation"></span></p>
+
+            <hr style="margin: 15px 0;">
+            <h4>Analisis Akurat (Setelah Hitung Ulang):</h4>
+            {# Bagian ini akan diisi oleh hasil hitung ulang #}
+            <div id="recalculated_results_display">
+                <p>Silakan klik "Hitung Ulang Produk Ini" untuk mendapatkan analisis akurat berdasarkan modal dan harga jual Anda.</p>
+                <p><strong>ROAS Rekomendasi Akurat:</strong> <span id="recalculated_roas_rekomendasi">N/A</span></p>
+                <p><strong>Modal Harian Rekomendasi Akurat:</strong> <span id="recalculated_modal_harian">N/A</span></p>
+                <p><strong>Analisa Akurat:</strong> <span id="recalculated_analisa">N/A</span></p>
+                <p><strong>Penjelasan Akurat:</strong> <span id="recalculated_explanation">N/A</span></p>
+            </div>
+
+            <button type="button" class="modal-recalculate-button" id="open_recalculate_modal_button">Hitung Ulang Produk Ini</button>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="modal-action-btn" onclick="closeProductAnalysisModal()">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
+{# MODAL KHUSUS UNTUK FORM HITUNG ULANG #}
+<div id="recalculate_input_modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="recalculate_input_modal_product_name">Hitung Ulang Produk</h3>
+            <button type="button" class="modal-close-button" onclick="closeRecalculateInputModal()">
+                &times;
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="form_recalculate" method="POST" class="analysis-form">
+                <input type="hidden" name="produkId" id="recalculate_form_product_id">
+                <input type="hidden" name="originalRowIndex" id="recalculate_form_original_row_index">
+
+                {# Hidden fields for original ad data to be sent back to backend for recalculation context #}
+                <input type="hidden" name="biayaIklanAktual" id="recalculate_form_biaya_iklan_aktual">
+                <input type="hidden" name="omzetPenjualanAktual" id="recalculate_form_omzet_penjualan_aktual">
+                <input type="hidden" name="produkTerjualAktual" id="recalculate_form_produk_terjual_aktual">
+                <input type="hidden" name="roasAktual" id="recalculate_form_roas_aktual">
+                <input type="hidden" name="persentaseKlikAktual" id="recalculate_form_persentase_klik_aktual">
+
+                <div class="filter-group">
+                    <label for="recalculate_modal_produk_input" class="filter-label">Modal Produk (Rp):</label>
+                    <input type="number" id="recalculate_modal_produk_input" name="modal" step="0.01" class="filter-input" required>
+                </div>
+                <div class="filter-group">
+                    <label for="recalculate_harga_jual_input" class="filter-label">Harga Jual (Rp):</label>
+                    <input type="number" id="recalculate_harga_jual_input" name="harga_jual" step="0.01" class="filter-input" required>
+                </div>
+                <div class="filter-group">
+                    <label for="recalculate_fee_shopee_input" class="filter-label">Fee Shopee (%):</label>
+                    <input type="number" id="recalculate_fee_shopee_input" name="fee" step="0.01" class="filter-input" required>
+                </div>
+                <div class="filter-group">
+                    <label for="recalculate_biaya_tambahan_input" class="filter-label">Biaya Tambahan (Rp):</label>
+                    <input type="number" id="recalculate_biaya_tambahan_input" name="tambahan" step="0.01" class="filter-input" required>
+                </div>
+                <div class="filter-group">
+                    <label for="recalculate_target_profit_input" class="filter-label">Target Profit (%):</label>
+                    <input type="number" id="recalculate_target_profit_input" name="target_profit" step="0.01" class="filter-input" required>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px; text-align: right;">
+                    <button type="submit" class="modal-action-btn">Hitung Ulang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+{# Placeholder for AJAX Flash messages #}
+<div id="ajax_flash_messages" style="position: fixed; top: 70px; right: 20px; z-index: 1000;"></div>
+
+<script>
+    // --- Global State for current mode ---
+    // Initialize with data from Flask on initial page load
+    let currentFlaskResult = {{ result | tojson }};
+    let activeMode = '{{ mode if mode else "baru" }}'; // Track the currently active tab mode
+    let currentProductForRecalculation = null; // Store product data when recalculate modal is opened
+
+    // Define header descriptions for tooltips
+    const headerDescriptions = {
+        "ROAS": "Return on Ad Spend (ROAS). Rasio Omzet terhadap Biaya Iklan. Mengukur efektivitas biaya iklan. Formula: (Omzet Penjualan / Biaya Iklan) x 100%.",
+        "Biaya Iklan": "Estimasi biaya iklan yang diperlukan untuk mencapai ROAS target.",
+        "Biaya<br>Iklan": "Estimasi biaya iklan yang diperlukan untuk mencapai ROAS target.", // For formatted header
+        "Omzet Penjualan": "Estimasi total penjualan yang dihasilkan pada ROAS tertentu.",
+        "Omzet<br>Penjualan": "Estimasi total penjualan yang dihasilkan pada ROAS tertentu.", // For formatted header
+        "Profit Total": "Estimasi keuntungan kotor setelah dikurangi modal, biaya fee, biaya tambahan, dan biaya iklan.",
+        "Profit<br>Total": "Estimasi keuntungan kotor setelah dikurangi modal, biaya fee, biaya tambahan, dan biaya iklan.", // For formatted header
+        "Profit Bersih": "Estimasi keuntungan bersih setelah dikurangi semua biaya, termasuk biaya iklan.",
+        "Trafik": "Indikator seberapa banyak iklan akan tayang untuk mencapai ROAS dan profit tersebut. 'Sangat Efisien' biasanya berarti volume penjualan lebih rendah tapi profit per unit tinggi. 'Sangat Kurang Efisien' berarti volume penjualan bisa lebih tinggi tapi bisa rugi.",
+        "Keterangan": "Status profitabilitas dan rekomendasi singkat untuk ROAS tersebut.",
+        "Status Profit": "Status profitabilitas dan rekomendasi singkat untuk ROAS tersebut.", // For formatted header
+        "ROAS Target": "ROAS yang ingin dicapai atau disimulasikan.",
+        "Biaya Iklan Ideal": "Perkiraan biaya iklan yang optimal untuk ROAS target.",
+        "Produk Terjual": "Jumlah produk yang terjual.",
+        "ROAS Aktual": "ROAS yang sebenarnya terjadi pada iklan.",
+        "Analisa": "Hasil analisis singkat performa iklan.",
+        "Rekomendasi Aksi": "Saran tindakan yang harus diambil berdasarkan analisis.",
+        "ROAS Target Optimal": "ROAS target yang disarankan untuk performa terbaik.",
+        "Detail": "Informasi detail mengenai performa iklan produk.",
+        "ROAS Rekomendasi": "ROAS target yang direkomendasikan untuk produk ini agar performanya optimal di Shopee.", // New header description
+        "Modal Harian Rekomendasi": "Estimasi modal harian yang direkomendasikan untuk produk ini berdasarkan performanya." // New header description
+    };
+
+    function showMode(mode) {
+        // Update activeMode global
+        activeMode = mode;
+
+        // Hide all form sections
+        document.querySelectorAll('.analysis-mode-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        document.getElementById('mode_' + mode + '_form').style.display = 'block';
+
+        // Update active class for mode selection tabs (in filter panel)
+        document.querySelectorAll('.mode-tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+        document.getElementById(`tab-${mode}-mode`).classList.add('active');
+
+        // Hide all result display sections
+        document.querySelectorAll('.result-display-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        document.getElementById('empty_result_display').style.display = 'none';
+
+        const activeResultDiv = document.getElementById(mode + '_result_display');
+        
+        // Use currentFlaskResult for displaying results when switching tabs
+        if (currentFlaskResult && currentFlaskResult.mode === mode) {
+            if ((currentFlaskResult.products_data && currentFlaskResult.products_data.length > 0) || (currentFlaskResult.table_data && currentFlaskResult.table_data.length > 0) || (currentFlaskResult.label_hasil && currentFlaskResult.label_keterangan)) {
+                activeResultDiv.style.display = 'block';
+                updateResultDisplay(mode, currentFlaskResult);
+            } else {
+                document.getElementById('empty_result_display').style.display = 'block';
+            }
+        } else {
+            // If no data for this specific mode in currentFlaskResult, show empty state
+            document.getElementById('empty_result_display').style.display = 'block';
+        }
+    }
+
+    function formatRupiah(amount) {
+        // Handle null, undefined, and NaN values
+        if (amount === null || amount === undefined || isNaN(parseFloat(amount))) {
+            return 'N/A';
+        }
+        const numericAmount = parseFloat(amount);
+        // Handle explicit zero values
+        if (numericAmount === 0) {
+            return 'Rp0';
+        }
+        const isNegative = numericAmount < 0;
+        const absoluteAmount = Math.round(Math.abs(numericAmount));
+        const formatted = new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(absoluteAmount);
+        return (isNegative ? '-Rp' : 'Rp') + formatted;
+    }
+
+    function formatNumberNoDecimal(amount) {
+        // Handle null, undefined, and NaN values
+        if (amount === null || amount === undefined || isNaN(parseFloat(amount))) {
+            return 'N/A';
+        }
+        const numericAmount = parseFloat(amount);
+        // Handle explicit zero values
+        if (numericAmount === 0) {
+            return '0';
+        }
+        return new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(numericAmount);
+    }
+
+    // --- Product Analysis Modal Functions ---
+    function openProductAnalysisModal(product) {
+        const modal = document.getElementById('product_analysis_modal');
+        currentProductForRecalculation = product; // Simpan produk saat ini untuk modal hitung ulang
+
+        // Mengisi data asli dari CSV
+        document.getElementById('modal_product_name').textContent = product.namaProduk || 'N/A';    
+        document.getElementById('modal_produk_id_display').textContent = product.produkId || 'N/A';
+        document.getElementById('modal_biaya').textContent = formatRupiah(product.biaya);
+        document.getElementById('modal_omzet_penjualan').textContent = formatRupiah(product.omzetPenjualan);
+        document.getElementById('modal_produk_terjual').textContent = formatNumberNoDecimal(product.produkTerjual) + ' Unit';
+        document.getElementById('modal_roas_aktual_display').textContent = (product.ROAS !== null && product.ROAS !== undefined && !isNaN(product.ROAS)) ? parseFloat(product.ROAS).toFixed(2) : 'N/A';
+        document.getElementById('modal_persentase_klik').textContent = (product.persentaseKlik !== null && product.persentaseKlik !== undefined && !isNaN(product.persentaseKlik)) ? (parseFloat(product.persentaseKlik) * 100).toFixed(2) + '%' : 'N/A';
+        document.getElementById('modal_analisa').textContent = product.analisa || 'N/A';
+        document.getElementById('modal_rekomendasi_aksi').textContent = product.rekomendasiAksi || 'N/A';
+        document.getElementById('modal_roas_target_optimal').textContent = product.roasTargetOptimal || 'N/A';
+        document.getElementById('modal_rekomendasi_modal_harian').textContent = product.rekomendasiModalHarian || 'N/A';
+        document.getElementById('modal_detailed_explanation').textContent = product.detailedExplanation || 'Penjelasan detail tidak tersedia.';
+
+        // Reset/sembunyikan hasil hitung ulang sebelumnya jika ada
+        const recalculateResultsDiv = document.getElementById('recalculated_results_display');
+        recalculateResultsDiv.innerHTML = `
+            <p>Silakan klik "Hitung Ulang Produk Ini" untuk mendapatkan analisis akurat berdasarkan modal dan harga jual Anda.</p>
+            <p><strong>ROAS Rekomendasi Akurat:</strong> <span id="recalculated_roas_rekomendasi">N/A</span></p>
+            <p><strong>Modal Harian Rekomendasi Akurat:</strong> <span id="recalculated_modal_harian">N/A</span></p>
+            <p><strong>Analisa Akurat:</strong> <span id="recalculated_analisa">N/A</span></p>
+            <p><strong>Penjelasan Akurat:</strong> <span id="recalculated_explanation">N/A</span></p>
+        `;
+
+        modal.style.display = 'flex';
+    }
+
+    function closeProductAnalysisModal() {
+        document.getElementById('product_analysis_modal').style.display = 'none';
+        currentProductForRecalculation = null;
+    }
+    // --- END: Product Analysis Modal Functions ---
+
+    // --- Recalculate Input Modal Functions (New, for the form) ---
+    function openRecalculateInputModal() {
+        // closeProductAnalysisModal(); // Tutup modal detail sebelumnya - TIDAK PERLU DITUTUP DULU
+
+        const modal = document.getElementById('recalculate_input_modal');
+        const product = currentProductForRecalculation; // Ambil produk yang sedang dilihat
+
+        if (!product) {
+            displayFlashMessage('Tidak ada produk yang dipilih untuk dihitung ulang.', 'warning');
+            return;
+        }
+
+        document.getElementById('recalculate_input_modal_product_name').textContent = `Hitung Ulang: ${product.namaProduk || 'Produk'}`;
+        
+        // Isi hidden fields untuk data original yang akan dikirim ke backend
+        document.getElementById('recalculate_form_product_id').value = product.produkId;
+        // Tidak perlu originalRowIndex karena tidak update tabel utama lagi
+        document.getElementById('recalculate_form_biaya_iklan_aktual').value = product.biaya || 0;
+        document.getElementById('recalculate_form_omzet_penjualan_aktual').value = product.omzetPenjualan || 0;
+        document.getElementById('recalculate_form_produk_terjual_aktual').value = product.produkTerjual || 0;
+        document.getElementById('recalculate_form_roas_aktual').value = product.ROAS || 0;
+        document.getElementById('recalculate_form_persentase_klik_aktual').value = product.persentaseKlik || 0;
+
+        // Prefill form inputs (Modal, Harga Jual, Fee, Tambahan, Profit Target)
+        // Gunakan nilai default atau estimasi yang masuk akal
+        const defaultModalRatio = 0.5; // 50% dari harga jual
+        const defaultFee = 5; // 5%
+        const defaultTambahan = 1000; // Rp1000
+        const defaultProfitTarget = 10; // 10%
+
+        let estimatedHargaJual = 0;
+        if (product.omzetPenjualan && product.produkTerjual && product.produkTerjual > 0) {
+            estimatedHargaJual = product.omzetPenjualan / product.produkTerjual;
+        }
+
+        document.getElementById('recalculate_modal_produk_input').value = Math.round(estimatedHargaJual * defaultModalRatio);    
+        document.getElementById('recalculate_harga_jual_input').value = Math.round(estimatedHargaJual);
+        document.getElementById('recalculate_fee_shopee_input').value = defaultFee;
+        document.getElementById('recalculate_biaya_tambahan_input').value = defaultTambahan;
+        document.getElementById('recalculate_target_profit_input').value = defaultProfitTarget;
+
+        modal.style.display = 'flex';
+    }
+
+    function closeRecalculateInputModal() {
+        document.getElementById('recalculate_input_modal').style.display = 'none';
+        // Setelah menutup modal input, tidak perlu membuka kembali modal detail karena sudah terbuka di belakangnya.
+        // Hasil akan diupdate di modal detail secara langsung.
+    }
+
+    // Event listener untuk tombol "Hitung Ulang Produk Ini" di modal detail
+    document.addEventListener('DOMContentLoaded', () => {
+        const openRecalculateButton = document.getElementById('open_recalculate_modal_button');
+        if (openRecalculateButton) {
+            openRecalculateButton.addEventListener('click', openRecalculateInputModal);
+        }
+    });
+
+    // Submit form recalculate
+    async function submitRecalculateForm(event) {
+        event.preventDefault();
+
+        const submitButton = event.submitter;
+        const form = document.getElementById('form_recalculate');
+
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
+
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+        document.getElementById('ajax_flash_messages').innerHTML = '';
+
+        try {
+            const response = await fetch('/apps/roas_calculator/recalculate_product', {    
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData    
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    if (errorData.message) {
+                        errorMessage = `Error: ${errorData.message}`;
+                    }
+                } catch (e) {
+                    errorMessage = `Server responded with an error. ${errorText.substring(0, 200)}... (Check Flask terminal for details)`;
+                }
+                console.error("AJAX Recalculate Error:", errorMessage);
+                displayFlashMessage(errorMessage, 'danger');
+                return;
+            }
+
+            const data = await response.json();
+            console.log("AJAX Recalculate Success Response Data:", data);
+
+            if (data.flash_messages && data.flash_messages.length > 0) {
+                data.flash_messages.forEach(msg => {
+                    displayFlashMessage(msg.message, msg.category);
+                });
+            }
+
+            if (data.recalculated_data_for_popup) {    
+                const recalculatedProductData = data.recalculated_data_for_popup;
+                
+                // Update tampilan di modal detail produk dengan hasil recalculate
+                document.getElementById('recalculated_roas_rekomendasi').textContent = recalculatedProductData.roasTargetOptimal;
+                document.getElementById('recalculated_modal_harian').textContent = recalculatedProductData.modalHarianRekomendasi;
+                document.getElementById('recalculated_analisa').textContent = recalculatedProductData.analisa;
+                document.getElementById('recalculated_explanation').textContent = recalculatedProductData.detailedExplanation;
+
+                closeRecalculateInputModal(); // Tutup modal input
+                // updateResultDisplay('csv', currentFlaskResult); // Tidak perlu render ulang tabel utama
+                displayFlashMessage('Analisis produk berhasil dihitung ulang!', 'success');
+            } else {
+                displayFlashMessage("Penghitungan ulang berhasil, tetapi data produk tidak diperbarui di popup.", "info");
+            }
+
+        } catch (error) {
+            console.error('Error during AJAX recalculate submission (Network/Parse Error):', error);
+            displayFlashMessage('Terjadi kesalahan jaringan atau server tidak merespons. Silakan coba lagi.', 'danger');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    }
+    // --- END: Recalculate Modal Functions ---
+
+
+    async function submitForm(event) {
+        event.preventDefault();
+
+        const submitButton = event.submitter;
+        const mode = submitButton.dataset.formMode;
+        const form = document.getElementById('form_' + mode);
+
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Loading...`;
+
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+        // If mode is 'jalan', append harga_jual_manual to formData
+        if (mode === 'jalan') {
+            const hargaJualManualInput = document.getElementById('harga_jual_manual');
+            if (hargaJualManualInput) {
+                formData.append('harga_jual_manual', hargaJualManualInput.value);
+            }
+        }
+
+        if (mode === 'csv') {
+            const fileInput = document.getElementById('csv_file');
+            if (fileInput.files.length === 0) {
+                displayFlashMessage('Peringatan: Harap pilih file CSV untuk diunggah.', 'warning');
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                return;
+            }
+        }
+
+        document.getElementById('ajax_flash_messages').innerHTML = '';
+
+        try {
+            let requestBody;
+            let requestHeaders = {
+                'X-CSRFToken': csrfToken,
+            };
+
+            if (mode === 'csv') {
+                requestBody = formData;
+            } else {
+                requestBody = new URLSearchParams(formData).toString();
+                requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+            }
+
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: requestHeaders,
+                body: requestBody
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    if (errorData.message) {
+                        errorMessage = `Error: ${errorData.message}`;
+                    }
+                } catch (e) {
+                    errorMessage = `Server responded with an error. ${errorText.substring(0, 200)}... (Check Flask terminal for details)`;
+                }
+                console.error("AJAX Fetch Error:", errorMessage);
+                displayFlashMessage(errorMessage, 'danger');
+                return;
+            }
+
+            const data = await response.json();
+            console.log("AJAX Success Response Data:", data);
+
+            if (data.flash_messages && data.flash_messages.length > 0) {
+                data.flash_messages.forEach(msg => {
+                    displayFlashMessage(msg.message, msg.category);
+                });
+            }
+
+            if (data.result) {
+                currentFlaskResult = data.result;
+                currentFlaskResult.mode = mode;    
+                updateResultDisplay(mode, currentFlaskResult);
+            } else {
+                console.warn("Response did not contain a 'result' key.", data);
+                displayFlashMessage("Analisa berhasil, tetapi tidak ada hasil yang ditampilkan.", "info");
+                document.getElementById('empty_result_display').style.display = 'block';
+            }
+
+        } catch (error) {
+            console.error('Error during AJAX submission (Network/Parse Error):', error);
+            displayFlashMessage('Terjadi kesalahan jaringan atau server tidak merespons. Silakan coba lagi.', 'danger');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+            showMode(mode);    
+        }
+    }
+
+    function updateResultDisplay(mode, result) {
+        document.querySelectorAll('.result-display-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        document.getElementById('empty_result_display').style.display = 'none';
+
+        const activeResultDiv = document.getElementById(mode + '_result_display');
+        activeResultDiv.style.display = 'block';    
+
+        let htmlContent = '';
+        
+        // --- Perbaikan Tampilan Bagian Atas (Panah Merah) ---
+        if (result.label_hasil) { // Applies to 'baru' and 'jalan' and 'csv'
+            htmlContent += `<div class="result-summary-text">`;
+            // Ensure bold tags are properly handled
+            let formattedLabelHasil = result.label_hasil.replace(/(\*\*)(.*?)\*\*/g, '<strong>$2</strong>');
+            htmlContent += `${formattedLabelHasil}`;
+            htmlContent += `</div>`;
+        }
+
+        if (result.label_keterangan) {
+            htmlContent += `<div class="result-info-box">`;
+            let infoItems = [];
+            if (Array.isArray(result.label_keterangan)) {
+                infoItems = result.label_keterangan;
+            } else if (typeof result.label_keterangan === 'string') {
+                // Split by newline for bullet points, then process each
+                infoItems = result.label_keterangan.split('\n');
+            }
+
+            infoItems.forEach(item => {
+                if (item.trim() !== '') {
+                    // Remove any existing bullet points and then handle bold text
+                    let formattedItem = item.replace(/^[•🎯📈📊💰]\s*/, '').trim(); // Remove various bullet types and leading space
+                    formattedItem = formattedItem.replace(/(\*\*)(.*?)\*\*/g, '<strong>$2</strong>'); // Apply bold
+                    htmlContent += `<span class="info-item">${formattedItem}</span>`;
+                }
+            });
+            htmlContent += `</div>`;
+        }
+        // --- End Perbaikan Tampilan Bagian Atas ---
+
+
+        if (mode === 'baru' || mode === 'jalan') {
+            if (result.table_data && result.table_data.length > 0) {
+                let tableHtml = `<div class="table-container-wrapper">
+                                        <table class="main-data-table">`;
+                tableHtml += `<thead><tr>`;
+                result.table_headers.forEach(header => {
+                    const cleanHeader = header.replace(' (Simulasi Basis)', '');
+                    tableHtml += `<th class="header-cell">
+                                        ${cleanHeader.replace('Biaya Iklan', 'Biaya<br>Iklan').replace('Omzet Penjualan', 'Omzet<br>Penjualan').replace('Profit Total', 'Profit<br>Total').replace('Status Profit', 'Status<br>Profit')}
+                                        <span class="info-icon" data-header-key="${header}">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.75-7.75a.75.75 0 00-1.5 0v3.5a.75.75 0 001.5 0v-3.5zM9.25 6a.75.75 0 111.5 0 .75.75 0 01-1.5 0z" clip-rule="evenodd"></path></svg>
+                                        </span>
+                                    </th>`;
+                });
+                tableHtml += `</tr></thead><tbody>`;
+                result.table_data.forEach((row) => {
+                    const rowColorTag = row[row.length - 1];
+                    let rowClass = '';
+                    let rowTextColorClass = '#4a5568';    
+                    if (rowColorTag === 'sangat_baik') {
+                        rowClass = 'status-green';
+                        rowTextColorClass = '#065f46';
+                    } else if (rowColorTag === 'cukup_baik') {
+                        rowClass = 'status-yellow';
+                        rowTextColorClass = '#8b5f00';
+                    } else if (rowColorTag === 'boncos') {
+                        rowClass = 'status-red';
+                        rowTextColorClass = '#991b1b';
+                    }
+                    tableHtml += `<tr class="${rowClass}">`;
+                    for (let i = 0; i < row.length - 1; i++) {
+                        const cellValue = row[i];
+                        const header = result.table_headers[i];
+                        let displayValue = cellValue;
+                        let cellStyle = '';
+                        
+                        const rawHeader = header.replace('<br>', ' ');
+                        if (rawHeader === 'Profit Bersih' || rawHeader === 'Profit Total') {
+                            // Ensure the value being parsed is a string without 'Rp' or commas for proper number check
+                            const numericValue = parseFloat(String(cellValue).replace('Rp', '').replace(/,/g, ''));
+                            displayValue = formatRupiah(numericValue); // Use formatRupiah for display
+                            if (numericValue < 0) {    
+                                cellStyle += 'color:#e53e3e; font-weight:600;';
+                            } else if (numericValue > 0) {    
+                                cellStyle += 'color:#38a169; font-weight:600;';
+                            }
+                        } else if (header.includes('ROAS') || header === 'Trafik' || header.includes('Status Profit') || header.includes('Produk Terjual')) {
+                            cellStyle += 'text-align:center;';
+                        }
+                        
+                        if (!cellStyle.includes('color:') && rowTextColorClass) {
+                            cellStyle += `color:${rowTextColorClass};`;
+                        }
+
+                        tableHtml += `<td style="${cellStyle}">${displayValue}</td>`;
+                    }
+                    tableHtml += `</tr>`;
+                });
+                tableHtml += `</tbody></table></div>`;
+                htmlContent += tableHtml;
+            } else {
+                htmlContent += `<div class="empty-state-message">Tidak ada data tabel untuk ditampilkan. Silakan masukkan parameter yang valid atau periksa input Anda.</div>`;
+            }
+        } else if (mode === 'csv') {
+            if (result.products_data && result.products_data.length > 0) {    
+                let tableHtml = `<div class="table-container-wrapper">
+                                        <table class="main-data-table csv-table"> {# Added csv-table class for specific widths #}
+                                            <thead>
+                                                <tr>
+                                                    <th>Produk ID</th>
+                                                    <th>Biaya Iklan</th>
+                                                    <th>Omzet Penjualan</th>
+                                                    <th>Produk Terjual</th>
+                                                    <th>ROAS Aktual</th>
+                                                    <th>Analisa</th>
+                                                    <th>Rekomendasi Aksi</th>
+                                                    <th>ROAS Rekomendasi</th> {# This header is kept/used for ROAS_Target_Optimal #}
+                                                    <th>Modal Harian Rekomendasi</th> {# New Column Header #}
+                                                    <th>Detail</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+                result.products_data.forEach((product, index) => {    
+                    let rowClass = '';
+                    let textColor = '#4a5568';
+                    if (product.tagWarna === 'sangat_baik') {    
+                        rowClass = 'status-green';
+                        textColor = '#065f46';
+                    } else if (product.tagWarna === 'cukup_baik') {    
+                        rowClass = 'status-yellow';
+                        textColor = '#8b5f00';
+                    } else if (product.tagWarna === 'boncos') {    
+                        rowClass = 'status-red';
+                        textColor = '#991b1b';
+                    }
+                    tableHtml += `<tr class="${rowClass}">
+                                            <td style="color:${textColor};">${product.produkId || 'N/A'}</td>    
+                                            <td style="color:${textColor};">${formatRupiah(product.biaya)}</td>    
+                                            <td style="color:${textColor};">${formatRupiah(product.omzetPenjualan)}</td>    
+                                            <td style="color:${textColor}; text-align:center;">${formatNumberNoDecimal(product.produkTerjual)} Unit</td>    
+                                            <td style="color:${textColor}; text-align:center;">
+                                                <span class="roas-value-box">`;
+                    // **PENTING: Logika Jinja di dalam string JavaScript harus diganti dengan logika JavaScript**
+                    // Ini adalah sumber error 'product' is undefined
+                    let roasAktualDisplay = (product.ROAS !== null && product.ROAS !== undefined && !isNaN(product.ROAS)) ? parseFloat(product.ROAS).toFixed(2) : 'N/A';
+                    tableHtml += `${roasAktualDisplay}`;
+                    tableHtml += `        </span>
+                                            </td>
+                                            <td style="color:${textColor};">${product.analisa || 'N/A'}</td>    
+                                            <td style="color:${textColor}; font-weight:600;">${product.rekomendasiAksi || 'N/A'}</td>    
+                                            <td style="color:${textColor}; text-align:center; font-weight:600;">
+                                                <span class="roas-value-box">`;
+                    let roasTargetOptimalDisplay = (product.roasTargetOptimal !== null && product.roasTargetOptimal !== undefined && !isNaN(parseFloat(product.roasTargetOptimal))) ? parseFloat(product.roasTargetOptimal).toFixed(2) : 'N/A';
+                    tableHtml += `${roasTargetOptimalDisplay}`;
+                    tableHtml += `                </span>
+                                            </td>
+                                            <td style="color:${textColor}; text-align:center; font-weight:600;">${product.rekomendasiModalHarian || 'N/A'}</td>    
+                                            <td>
+                                                {# Tombol Detail akan membuka modal detail, dan di dalamnya ada tombol Hitung Ulang #}
+                                                <button class="detail-action-button" onclick='openProductAnalysisModal(${ JSON.stringify(product) })'>Lihat</button>
+                                            </td>
+                                        </tr>`;
+                });
+                tableHtml += `</tbody></table></div>`;
+                htmlContent += tableHtml;
+            } else {
+                htmlContent += `<div class="empty-state-message">Tidak ada produk 'Berjalan' dalam file CSV. Pastikan file CSV Anda berisi data yang valid.</div>`;
+            }
+        }
+        
+        activeResultDiv.innerHTML = htmlContent;
+
+        // Attach event listeners for new header info icons
+        document.querySelectorAll('.info-icon').forEach(icon => {
+            icon.addEventListener('mouseenter', (event) => {
+                const headerKey = event.currentTarget.dataset.headerKey;
+                const description = headerDescriptions[headerKey] || "Keterangan tidak tersedia.";
+                showHeaderTooltip(event.currentTarget, description);
+            });
+            icon.addEventListener('mouseleave', () => {
+                hideHeaderTooltip();
+            });
+        });
+    }
+
+    function showHeaderTooltip(element, text) {
+        const tooltip = document.getElementById('header_tooltip');
+        tooltip.textContent = text;
+        
+        const rect = element.getBoundingClientRect();
+        
+        let leftPos = rect.left + (rect.width / 2);
+        let topPos = rect.top - 12; /* Adjust to position above icon */
+
+        tooltip.style.left = `${leftPos}px`;
+        tooltip.style.top = `${topPos}px`;
+        tooltip.style.transform = `translateX(-50%) translateY(-100%)`; /* Position above element */
+        tooltip.style.display = 'block';
+
+        /* Ensure tooltip doesn't go off-screen (left/right) */
+        const tooltipRect = tooltip.getBoundingClientRect();
+        if (tooltipRect.left < 5) { /* 5px padding from left edge */
+            tooltip.style.left = `${rect.left + tooltipRect.width / 2}px`;
+            tooltip.style.transform = `translateX(0%) translateY(-100%)`;
+        }
+        if (tooltipRect.right > window.innerWidth - 5) { /* 5px padding from right edge */
+            tooltip.style.left = `${rect.right - tooltipRect.width / 2}px`;
+            tooltip.style.transform = `translateX(-100%) translateY(-100%)`;
+        }
+
+        /* Adjust tooltip position if it goes off-screen (top) */
+        if (tooltipRect.top < 0 && rect.bottom + 12 < window.innerHeight) { /* Check if space below is available */
+            tooltip.style.top = `${rect.bottom + 12}px`;
+            tooltip.style.transform = `translateX(-50%)`; /* Remove translateY(-100%) */
+
+            /* Re-check left/right after top adjustment */
+            const newTooltipRect = tooltip.getBoundingClientRect();
+            if (newTooltipRect.left < 5) {
+                tooltip.style.left = `${rect.left + newTooltipRect.width / 2}px`;
+                tooltip.style.transform = `translateX(0%)`;
+            }
+            if (newTooltipRect.right > window.innerWidth - 5) {
+                tooltip.style.left = `${rect.right - newTooltipRect.width / 2}px`;
+                tooltip.style.transform = `translateX(-100%)`;
+            }
+        }
+    }
+
+    function hideHeaderTooltip() {
+        document.getElementById('header_tooltip').style.display = 'none';
+    }
+
+
+    function displayFlashMessage(message, category) {
+        const flashContainer = document.getElementById('ajax_flash_messages');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `flash-message ${category}`;
+        alertDiv.innerHTML = `<span>${message}</span>
+            <button class="close-flash-btn" onclick="this.closest('.flash-message').remove()">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+            </button>`;
+        flashContainer.appendChild(alertDiv);
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 8000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Measure notification height once it's rendered, to adjust app-main-container height
+        const notificationBar = document.querySelector('.top-notification-bar');
+        let notificationHeight = 0;
+        if (notificationBar) {
+            notificationHeight = notificationBar.offsetHeight;
+        }
+        document.documentElement.style.setProperty('--notification-height', `${notificationHeight}px`);
+
+        // Use the activeMode variable to determine which tab and results to show on initial load
+        showMode(activeMode);    
+
+        // Add event listeners for form submissions
+        document.getElementById('form_baru').addEventListener('submit', submitForm);
+        document.getElementById('form_jalan').addEventListener('submit', submitForm);
+        document.getElementById('form_csv').addEventListener('submit', submitForm);
+        document.getElementById('form_recalculate').addEventListener('submit', submitRecalculateForm); // Event listener untuk form Hitung Ulang
+        
+        // Event listeners for mode selection tabs (in filter panel)
+        document.querySelectorAll('.mode-tab-button').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const mode = event.target.dataset.mode;
+                showMode(mode);
+            });
+        });
+        
+        // Sidebar toggle button functionality (from base_auth.html)
+        const toggleSidebarButton = document.getElementById('toggle-sidebar-button');
+        const sidebar = document.getElementById('sidebar');
+        const contentArea = document.querySelector('.content-area'); // Make sure this selector matches your base_auth.html content area
+
+        if (toggleSidebarButton && sidebar && contentArea) {
+            toggleSidebarButton.addEventListener('click', function() {
+                const willBeCollapsed = !sidebar.classList.contains('collapsed');
+                sidebar.classList.toggle('collapsed');
+                
+                contentArea.classList.remove('sidebar-collapsed', 'sidebar-expanded');
+                if (willBeCollapsed) {
+                    contentArea.classList.add('sidebar-collapsed');
+                } else {
+                    contentArea.classList.add('sidebar-expanded');
+                }
+                localStorage.setItem('sidebarCollapsed', willBeCollapsed);
+            });
+        }
+        
+        // User menu dropdown (desktop)
+        const userMenuButtonDesktop = document.getElementById('user-menu-button-desktop');
+        const userMenuDesktop = document.getElementById('user-menu-desktop');
+        if (userMenuButtonDesktop && userMenuDesktop) {
+            userMenuButtonDesktop.addEventListener('click', function(event) {
+                event.stopPropagation();
+                userMenuDesktop.classList.toggle('active');
+                this.querySelector('.user-menu-arrow')?.classList.toggle('rotate-180');
+            });
+            document.addEventListener('click', function(event) {
+                if (!userMenuButtonDesktop.contains(event.target) && !userMenuDesktop.contains(event.target)) {
+                    userMenuDesktop.classList.remove('active');
+                    const arrow = userMenuButtonDesktop.querySelector('.user-menu-arrow');
+                    if (arrow) arrow.classList.remove('rotate-180');
+                }
+            });
+        }
+
+        // Notification dropdown
+        const notificationButton = document.getElementById('notification-button');
+        const notificationDropdown = document.getElementById('notification-dropdown');
+        if (notificationButton && notificationDropdown) {
+            notificationButton.addEventListener('click', function(event) {
+                event.stopPropagation();
+                notificationDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function(event) {
+                if (!notificationButton.contains(event.target) && !notificationDropdown.contains(event.target)) {
+                    notificationDropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // Dark mode toggle - Clockify is primarily light mode. We'll make minimal dark mode for consistency
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const htmlElement = document.documentElement;
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', function() {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+        }
+
+        // Apply theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            htmlElement.classList.add('dark');
+        } else if (savedTheme === 'light') {
+            htmlElement.classList.remove('dark'); // Ensure 'dark' class is removed
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            htmlElement.classList.add('dark');
+        }
+    });
+</script>
+{% endblock %}

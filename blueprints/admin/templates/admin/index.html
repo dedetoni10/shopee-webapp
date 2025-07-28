@@ -1,0 +1,49 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}Dashboard Admin | rumaiku.id{% endblock %}
+{% block header_title %}Dashboard Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-8 bg-white rounded-lg shadow-xl">
+    <h1 class="text-3xl font-bold mb-4">Ringkasan Aktivitas Website</h1>
+    <p class="text-gray-600 mb-8">Data ini hanya bisa dilihat oleh pemilik website.</p>
+
+    <div class="bg-gray-100 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">Daftar Pengguna Terdaftar</h2>
+        <table class="w-full text-left table-auto">
+            <thead>
+                <tr class="bg-gray-200 text-gray-700">
+                    <th class="p-4 rounded-tl-lg">Username</th>
+                    <th class="p-4">Status Admin</th>
+                    <th class="p-4">Aplikasi Terinstal</th>
+                    <th class="p-4 rounded-tr-lg">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users_data %}
+                <tr class="border-b border-gray-300">
+                    <td class="p-4">{{ user.username }}</td>
+                    <td class="p-4">
+                        {% if user.is_admin %}
+                            <span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">Admin</span>
+                        {% else %}
+                            <span class="bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded">User</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4">{{ user.installed_apps }}</td>
+                    <td class="p-4 flex items-center space-x-2">
+                        <a href="{{ url_for('admin.edit_user', username=user.username) }}" class="text-blue-500 hover:underline">Edit</a>
+                        <a href="{{ url_for('admin.delete_user', username=user.username) }}" onclick="return confirm('Apakah kamu yakin ingin menghapus pengguna ini?')" class="text-red-500 hover:underline">Hapus</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-8 bg-gray-100 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">Analisis Langganan</h2>
+        <p class="text-gray-500">Fitur ini akan dikembangkan di masa depan.</p>
+    </div>
+</div>
+{% endblock %}

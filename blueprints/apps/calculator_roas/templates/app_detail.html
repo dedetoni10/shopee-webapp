@@ -1,0 +1,309 @@
+{# File: blueprints/apps/calculator_roas/templates/app_detail.html #}
+{% extends 'base_auth.html' %}
+
+{% block title %}Detail: {{ app.name }} | rumaiku.id{% endblock %}
+{% block header_title %}Detail Aplikasi: {{ app.name }}{% endblock %}
+
+{% block app_notification %}
+    {# Notifikasi aplikasi sekarang berada di sini, berdasarkan data yang diteruskan dari blueprint #}
+    {% if notification_type == 'trial' or notification_type == 'expired' or notification_type == 'premium' %}
+        <div class="w-full py-2 px-4 text-center text-sm font-medium sticky top-0 z-20 
+            {% if notification_type == 'trial' or notification_type == 'expired' %} bg-red-500 text-white shadow-sm
+            {% elif notification_type == 'premium' %} bg-green-500 text-white shadow-sm
+            {% endif %}">
+            <div class="flex items-center justify-center">
+                <span id="app-notification-message" class="flex-grow">
+                    {# Text will be set by JavaScript #}
+                </span>
+                <a href="https://wa.me/{{ whatsapp_number }}" target="_blank" class="ml-4 px-3 py-1 text-xs rounded-md bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors duration-200">
+                    Hubungi Admin
+                </a>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+
+{% block content %}
+<div class="container mx-auto mt-6 p-4 md:p-6 bg-white rounded-lg shadow-xl">
+    <div class="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+        {# Icon Aplikasi #}
+        <div class="p-4 bg-blue-100 rounded-lg flex-shrink-0">
+            {% if app.url == 'roas_calculator' %}
+            <svg class="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v4m0-4H9m0 0V9m6 0a6 6 0 01-6 6H9a6 6 0 01-6-6V9a6 6 0 016-6h6a6 6 0 016 6v4a6 6 0 01-6 6h-3"></path></svg>
+            {% else %}
+            <svg class="w-16 h-16 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            {% endif %}
+        </div>
+        
+        {# Judul, Deskripsi, dan Tombol Aksi Utama #}
+        <div class="flex-grow text-center md:text-left">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ app.name }}</h1>
+            <p class="text-gray-700 text-lg mb-4">{{ app.description }}</p>
+
+            {# Tombol-tombol utama di bagian atas #}
+            <div class="flex flex-col sm:flex-row items-center sm:justify-start gap-4 mb-6">
+                {% if is_installed %}
+                    {# Jika sudah terinstal, berikan tombol sesuai status akses #}
+                    {% if trial_expired and not is_premium_active %}
+                        {# Trial Berakhir, tawarkan perpanjang #}
+                        <a href="https://wa.me/{{ whatsapp_number }}?text=Halo%20Admin%2C%20saya%20ingin%20memperpanjang%20akses%20aplikasi%20{{ app.name | urlencode }}" target="_blank" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 px-5 rounded-lg text-base transition-colors duration-200 shadow-md">
+                            Perpanjang Akses (Trial Berakhir)
+                        </a>
+                    {% else %} {# Trial aktif atau Premium aktif #}
+                        {# Akses aktif, tawarkan buka aplikasi #}
+                        <a href="{{ url_for('calculator_roas.index') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg text-base transition-colors duration-200 shadow-md">
+                            Buka Aplikasi
+                        </a>
+                    {% endif %}
+                {% else %}
+                    {# Belum terinstal, tawarkan percobaan gratis #}
+                    <form id="install-form" action="{{ url_for('app_store.install_app', app_id=app.id) }}" method="POST" class="inline-block">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" id="trial-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-5 rounded-lg text-base transition-colors duration-200 shadow-md">
+                            Mulai Percobaan Gratis
+                        </button>
+                    </form>
+                {% endif %}
+
+                {# Tombol Beli Premium (selalu tampil) #}
+                <a href="https://wa.me/089679538444?text=Halo%20Admin%2C%20saya%20tertarik%20untuk%20membeli%20akses%20Premium%20aplikasi%20{{ app.name | urlencode }}" target="_blank" class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-bold py-2.5 px-5 rounded-lg text-base transition-colors duration-200 shadow-md">
+                    Beli Premium
+                </a>
+            </div>
+            {# END Tombol-tombol utama #}
+
+        </div>
+    </div>
+
+    {# Bagian Keterangan Detail Aplikasi #}
+    <div class="mt-8 border-t border-gray-200 pt-6 px-4"> {# Menambahkan px-4 untuk padding horizontal #}
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Tentang Aplikasi Ini</h3>
+        <p class="text-gray-600 leading-relaxed mb-4">
+            Aplikasi Kalkulator ROAS (Return on Ad Spend) adalah alat esensial bagi para pengiklan online untuk mengukur efektivitas kampanye iklan mereka. Dengan memasukkan data biaya iklan dan omzet penjualan yang dihasilkan dari iklan, Anda dapat dengan cepat mengetahui Return on Ad Spend (ROAS) Anda. Aplikasi ini juga menyediakan rekomendasi untuk optimasi, membantu Anda memaksimalkan keuntungan dan menghindari kerugian.
+        </p>
+
+        <h4 class="text-lg font-semibold text-gray-800 mb-3">Fitur Utama:</h4>
+        <ul class="list-disc list-inside mt-2 space-y-2 text-gray-600">
+            <li>Perhitungan ROAS instan.</li>
+            <li>Analisis detail dengan rekomendasi aksi.</li>
+            <li>Mendukung impor data CSV untuk analisis massal.</li>
+            <li>Simulasi profit berdasarkan berbagai skenario.</li>
+            <li>Deteksi dini kampanye yang merugi untuk tindakan cepat.</li>
+        </ul>
+        <p class="text-gray-600 italic mt-6 text-center">
+            Optimalkan pengeluaran iklan Anda dan tingkatkan profitabilitas dengan Kalkulator ROAS!
+        </p>
+    </div>
+</div>
+
+{# LOADING OVERLAY (Progress Bar) #}
+<div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] opacity-0 transition-opacity duration-300 pointer-events-none">
+    <div class="bg-white p-8 rounded-lg shadow-2xl text-center w-80 max-w-sm">
+        <p class="text-gray-800 text-xl font-semibold mb-4">Menginstal Aplikasi...</p>
+        <div class="w-full bg-gray-200 rounded-full h-4 mb-2">
+            <div id="progress-bar" class="bg-blue-500 h-4 rounded-full transition-all duration-100 ease-linear" style="width: 0%;"></div>
+        </div>
+        <p id="progress-text" class="text-gray-600 text-sm font-medium">0%</p>
+        <p class="text-gray-500 text-sm mt-4">Mohon tunggu sebentar, ini mungkin memakan waktu.</p>
+    </div>
+</div>
+
+{# SUCCESS POPUP #}
+<div id="success-popup" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[10000] opacity-0 transition-opacity duration-300 pointer-events-none">
+    <div class="bg-white p-8 rounded-lg shadow-2xl text-center w-80 max-w-sm">
+        <svg class="w-20 h-20 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="text-gray-800 text-xl font-semibold mb-2">Instalasi Berhasil!</p>
+        <p id="success-message" class="text-gray-600 text-base mb-4">Aplikasi Kalkulator ROAS berhasil diinstal dan trial 7 hari diaktifkan!</p>
+        <button id="close-success-popup" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200">
+            Oke, Buka Aplikasi
+        </button>
+    </div>
+</div>
+
+
+<script>
+    // --- App Notification Countdown Logic ---
+    const timeRemainingSeconds = {{ time_remaining_seconds | default(0) }};
+    const appNotificationMessageElement = document.getElementById('app-notification-message');
+    const notificationType = "{{ notification_type | default('') }}";
+    const notificationMessagePrefix = "{{ notification_message_prefix | default('') }}";
+    const appName = "{{ app.name | default('') }}"; // Mengambil nama aplikasi dari app object
+
+    function formatTimeForAppNotification(totalSeconds) {
+        if (totalSeconds <= 0) { return "00:00:00"; }
+        const days = Math.floor(totalSeconds / (3600 * 24));
+        const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const remainingSeconds = Math.floor(totalSeconds % 60);
+
+        let timeString = '';
+        if (days > 0) { timeString += `${days} hari `; }
+        timeString += `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        return timeString;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Handle App Notification (if applicable)
+        if (appNotificationMessageElement) {
+            if (notificationType === 'expired') {
+                appNotificationMessageElement.textContent = notificationMessagePrefix;
+            } else if (notificationType === 'trial') {
+                let seconds = timeRemainingSeconds;
+                const countdownInterval = setInterval(() => {
+                    seconds--;
+                    if (seconds <= 0) { clearInterval(countdownInterval); appNotificationMessageElement.textContent = `Masa percobaan untuk Aplikasi ${appName} telah berakhir! Silakan Hubungi Admin untuk memperpanjang.`; }
+                    else { appNotificationMessageElement.textContent = `${notificationMessagePrefix} ${formatTimeForAppNotification(seconds)}, Silakan Hubungi Admin untuk memperpanjang!`; }
+                }, 1000);
+                appNotificationMessageElement.textContent = `${notificationType === 'trial' ? notificationMessagePrefix + ' ' + formatTimeForAppNotification(seconds) + ', Silakan Hubungi Admin untuk memperpanjang!' : ''}`;
+            } else if (notificationType === 'premium') {
+                let seconds = timeRemainingSeconds;
+                const countdownInterval = setInterval(() => {
+                    seconds--;
+                    if (seconds <= 0) { clearInterval(countdownInterval); appNotificationMessageElement.textContent = `Langganan Premium untuk Aplikasi ${appName} telah berakhir! Silakan Hubungi Admin untuk memperpanjang.`; }
+                    else { appNotificationMessageElement.textContent = `${notificationType === 'premium' ? notificationMessagePrefix + ' ' + formatTimeForAppNotification(seconds) + '.' : ''}`; }
+                }, 1000);
+                appNotificationMessageElement.textContent = `${notificationType === 'premium' ? notificationMessagePrefix + ' ' + formatTimeForAppNotification(seconds) + '.' : ''}`;
+            }
+        }
+
+        // --- New JavaScript for Progress Bar, AJAX Submission, and Popups ---
+        const installForm = document.getElementById('install-form');
+        const trialButton = document.getElementById('trial-button');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text'); // Changed from progressPercentage
+        const successPopup = document.getElementById('success-popup');
+        const successMessage = document.getElementById('success-message'); // Changed from popupMessage
+        const closeSuccessPopupButton = document.getElementById('close-success-popup'); // Changed from popupCloseButton
+
+        // Check if elements exist before adding listeners
+        if (!installForm || !trialButton || !loadingOverlay || !progressBar || !progressText || !successPopup || !closeSuccessPopupButton) {
+            console.error("One or more required DOM elements for installation animation not found.");
+            return; // Exit if essential elements are missing
+        }
+
+        let currentProgress = 0;
+        let progressInterval;
+        let ajaxRequestCompleted = false; // Flag to indicate if AJAX request has finished
+        let redirectUrl = "{{ url_for('app_store.index') }}"; // Default redirect URL
+
+        function animateProgressBar() {
+            currentProgress = 0; // Reset progress
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            ajaxRequestCompleted = false; // Reset AJAX status
+            
+            const animationDuration = 2500; // 2.5 seconds to reach ~90%
+            const slowdownPoint = 0.90; // 90%
+            const startTime = performance.now();
+
+            function updateProgress(currentTime) {
+                const elapsedTime = currentTime - startTime;
+                let calculatedProgress;
+
+                if (elapsedTime < animationDuration) {
+                    calculatedProgress = (elapsedTime / animationDuration) * 90; // Reach 90% in 2.5 seconds
+                } else {
+                    // After 2.5 seconds, wait for AJAX, then quickly finish
+                    if (ajaxRequestCompleted) {
+                        calculatedProgress = 90 + ((elapsedTime - animationDuration) / 500) * 10; // Finish last 10% in 0.5s after AJAX
+                        if (calculatedProgress > 100) calculatedProgress = 100;
+                    } else {
+                        calculatedProgress = 90; // Hold at 90%
+                    }
+                }
+
+                currentProgress = calculatedProgress;
+                progressBar.style.width = `${currentProgress}%`;
+                progressText.textContent = `${Math.floor(currentProgress)}%`;
+
+                if (currentProgress < 100 || !ajaxRequestCompleted) {
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    // Animation is at 100% and AJAX is completed
+                    finishInstallationProcess();
+                }
+            }
+            requestAnimationFrame(updateProgress);
+        }
+
+        function showLoadingOverlay() {
+            loadingOverlay.classList.remove('pointer-events-none');
+            loadingOverlay.classList.add('opacity-100');
+        }
+
+        function hideLoadingOverlay() {
+            loadingOverlay.classList.remove('opacity-100');
+            loadingOverlay.classList.add('pointer-events-none');
+        }
+
+        function showSuccessPopup(message) {
+            successMessage.textContent = message; // Update the message in the popup
+            successPopup.classList.remove('pointer-events-none');
+            successPopup.classList.add('opacity-100');
+        }
+
+        function hideSuccessPopup() {
+            successPopup.classList.remove('opacity-100');
+            successPopup.classList.add('pointer-events-none');
+        }
+
+        function finishInstallationProcess() {
+            hideLoadingOverlay();
+            showSuccessPopup(successMessage.textContent); // Use the message that was set from AJAX
+            // The close button handler will take care of redirection
+        }
+
+        installForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Mencegah pengiriman form default
+
+            showLoadingOverlay();
+            trialButton.disabled = true;
+            trialButton.textContent = 'Memproses...';
+
+            animateProgressBar(); // Mulai animasi progress bar
+
+            try {
+                const formData = new FormData(installForm);
+                const response = await fetch(installForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest' // Menandakan ini adalah permintaan AJAX
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    successMessage.textContent = data.message; // Set message for the popup
+                    redirectUrl = data.redirect_url; // Simpan URL redirect dari respons Flask
+                } else {
+                    // Handle error case from Flask response
+                    successMessage.textContent = data.message || "Terjadi kesalahan saat instalasi.";
+                    // Optionally, change popup style/icon for error
+                    // For now, it will just show error message in the success popup
+                }
+            } catch (error) {
+                console.error('Error during installation:', error);
+                successMessage.textContent = "Terjadi kesalahan jaringan. Coba lagi.";
+                // Optionally, change popup style/icon for error
+            } finally {
+                ajaxRequestCompleted = true; // Tandai bahwa permintaan AJAX sudah selesai
+                // Progress bar animation will detect this and finish to 100%
+                trialButton.disabled = false; // Re-enable button (it will be immediately redirected anyway)
+                trialButton.textContent = 'Mulai Percobaan Gratis';
+            }
+        });
+
+        closeSuccessPopupButton.addEventListener('click', () => {
+            hideSuccessPopup();
+            if (redirectUrl) {
+                window.location.href = redirectUrl; // Redirect setelah pop-up ditutup
+            }
+        });
+    });
+</script>
+
+{% endblock %}

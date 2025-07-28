@@ -1,0 +1,192 @@
+{% extends 'base_admin.html' %}
+
+{% block title %}Dashboard Admin | rumaiku.id{% endblock %}
+{% block header_title %}Ringkasan Aktivitas Website{% endblock %}
+
+{% block content %}
+<p class="text-gray-600 mb-6">Data ini hanya bisa dilihat oleh pemilik website.</p>
+
+<div class="bg-white rounded-lg shadow-md p-6 mb-8">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Daftar Pengguna Terdaftar</h3>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full leading-normal">
+            <thead>
+                <tr>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Username
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status Admin
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Aplikasi Terinstal
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Aksi
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_data in users_data %}
+                <tr>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <p class="text-gray-900 whitespace-no-wrap">{{ user_data.user.username }}</p>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <span class="relative inline-block px-3 py-1 font-semibold leading-tight {% if user_data.user.is_admin %}text-green-900{% else %}text-gray-900{% endif %}">
+                            <span aria-hidden="true" class="absolute inset-0 opacity-50 rounded-full {% if user_data.user.is_admin %}bg-green-200{% else %}bg-gray-200{% endif %}"></span>
+                            <span class="relative">{{ "Admin" if user_data.user.is_admin else "User" }}</span>
+                        </span>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        {% if user_data.installed_apps %}
+                            {% for app_info in user_data.installed_apps %}
+                            <div class="mb-1 text-gray-900 whitespace-no-wrap">
+                                {{ app_info.name }} 
+                                <span class="text-xs {% if app_info.status == 'Trial Berakhir' %}text-red-600{% elif app_info.is_premium %}text-blue-600{% else %}text-gray-500{% endif %}">
+                                    ({{ app_info.status }})
+                                </span>
+                                {% if app_info.is_premium and app_info.premium_end_date %}
+                                    <span class="text-xxs text-gray-500">(Berakhir: {{ app_info.premium_end_date }})</span>
+                                {% endif %}
+                                <form action="{{ url_for('admin.admin_uninstall_app', user_id=user_data.user.id, app_id=app_info.id) }}" method="POST" class="inline ml-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs" onclick="return confirm('Apakah Anda yakin ingin menghapus instalasi {{ app_info.name }} untuk pengguna {{ user_data.user.username }}?');">Hapus Instalasi</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-gray-500">Tidak ada</p>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        {% if not user_data.user.is_admin %}
+                            {# --- BARU: Tombol Beri Akses Dikembalikan --- #}
+                            <button onclick="openGrantAccessModal('{{ user_data.user.id }}', '{{ user_data.user.username }}')" class="text-blue-600 hover:text-blue-900 mr-3 text-xs">
+                                Beri Akses
+                            </button>
+                            {# --- AKHIR BARU --- #}
+                            <form action="{{ url_for('admin.delete_user', user_id=user_data.user.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="text-red-600 hover:text-red-900 text-xs" onclick="return confirm('Apakah Anda yakin ingin menghapus pengguna {{ user_data.user.username }}? Ini akan menghapus semua datanya.');">
+                                    Hapus
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="text-gray-500 text-xs">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Analisis Langganan</h3>
+    <p class="text-gray-600">Fitur ini akan dikembangkan di masa depan.</p>
+</div>
+
+
+{# --- BARU: Modal untuk Memberikan Akses Dikembalikan --- #}
+<div id="grantAccessModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Berikan Akses untuk <span id="modalUsername" class="text-blue-600"></span></h2>
+        <form id="grantAccessForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" id="modalUserId" name="user_id">
+            
+            <div class="mb-4">
+                <label for="app_id" class="block text-gray-700 text-sm font-bold mb-2">Pilih Aplikasi:</label>
+                <select id="app_id" name="app_id" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    {% for app in all_apps %} {# all_apps harus dikirim dari admin.routes.py #}
+                        <option value="{{ app.id }}">{{ app.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="access_type" class="block text-gray-700 text-sm font-bold mb-2">Tipe Akses:</label>
+                <select id="access_type" name="access_type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="trial">Masa Percobaan (24 Jam)</option>
+                    <option value="premium">Langganan Premium</option>
+                </select>
+            </div>
+
+            <div id="durationFields" class="mb-4 hidden">
+                <label for="duration_type" class="block text-gray-700 text-sm font-bold mb-2">Durasi Akses:</label>
+                <select id="duration_type" name="duration_type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="24h">24 Jam</option>
+                    <option value="3d">3 Hari</option>
+                    <option value="7d">7 Hari</option>
+                    <option value="1m">1 Bulan</option>
+                    <option value="custom">Custom (Jam)</option>
+                </select>
+            </div>
+
+            <div id="customHoursContainer" class="mb-4 hidden">
+                <label for="custom_hours" class="block text-gray-700 text-sm font-bold mb-2">Jumlah Jam (Custom):</label>
+                <input type="number" id="custom_hours" name="custom_hours" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+
+            <div class="flex justify-end">
+                <button type="button" onclick="closeGrantAccessModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2">Batal</button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Berikan Akses</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const grantAccessModal = document.getElementById('grantAccessModal');
+    const modalUsernameSpan = document.getElementById('modalUsername');
+    const modalUserIdInput = document.getElementById('modalUserId');
+    const grantAccessForm = document.getElementById('grantAccessForm');
+    const accessTypeSelect = document.getElementById('access_type');
+    const durationFields = document.getElementById('durationFields');
+    const durationTypeSelect = document.getElementById('duration_type');
+    const customHoursContainer = document.getElementById('customHoursContainer');
+
+    function openGrantAccessModal(userId, username) {
+        modalUsernameSpan.textContent = username;
+        modalUserIdInput.value = userId;
+        grantAccessForm.action = `/admin/grant_access/${userId}`;
+        grantAccessModal.classList.remove('hidden');
+        grantAccessModal.classList.add('flex');
+        grantAccessForm.reset(); 
+        
+        accessTypeSelect.value = 'trial'; // Default ke percobaan
+        durationFields.classList.add('hidden'); // Sembunyikan durasi untuk trial
+        customHoursContainer.classList.add('hidden');
+    }
+
+    function closeGrantAccessModal() {
+        grantAccessModal.classList.add('hidden');
+        grantAccessModal.classList.remove('flex');
+    }
+
+    accessTypeSelect.addEventListener('change', function() {
+        if (this.value === 'trial') {
+            durationFields.classList.add('hidden');
+            customHoursContainer.classList.add('hidden');
+            customHoursContainer.querySelector('input').value = '';
+        } else { // premium
+            durationFields.classList.remove('hidden');
+            durationTypeSelect.value = '24h'; 
+            customHoursContainer.classList.add('hidden');
+        }
+    });
+
+    durationTypeSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customHoursContainer.classList.remove('hidden');
+        } else {
+            customHoursContainer.classList.add('hidden');
+            customHoursContainer.querySelector('input').value = '';
+        }
+    });
+</script>
+{# --- AKHIR BARU --- #}
+{% endblock %} {# <-- PASTIKAN INI ADA DI AKHIR FILE UNTUK MENUTUP block 'content' #}
